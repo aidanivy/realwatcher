@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Your Scorecard — Box Office Draft{% endblock %}
+
+{% block nav %}
+<span class="nav-player">🎟 {{ s.player }}</span>
+{% endblock %}
+
+{% block content %}
+<section class="scorecard">
+
+  <div class="score-hero">
+    <p class="score-eyebrow">Final Marquee</p>
+    <h1 class="score-name">{{ s.player }}</h1>
+    <div class="score-total-wrap">
+      <span class="score-label">Total Worldwide Gross</span>
+      <span class="score-total">${{ '{:,.0f}'.format(result.total_gross) }}M</span>
+    </div>
+    {% if result.total_profit %}
+    <div class="score-profit-wrap">
+      <span class="score-label">Total Profit</span>
+      <span class="score-profit {% if result.total_profit > 0 %}pos{% endif %}">
+        {{ '+' if result.total_profit > 0 else '' }}${{ '{:,.0f}'.format(result.total_profit) }}M
+      </span>
+    </div>
+    {% endif %}
+    <p class="score-filled">{{ result.filled }} / 10 slots filled</p>
+  </div>
+
+  <div class="scorecard-grid">
+    {% for entry in result.slots %}
+    <div class="score-slot {% if entry.film %}filled{% else %}empty{% endif %}">
+      <div class="score-slot-label">
+        <span>{{ entry.slot.icon }}</span>
+        <span>{{ entry.slot.label }}</span>
+      </div>
+      {% if entry.film %}
+      <div class="score-film">
+        {% if entry.film.poster_url %}
+        <img src="{{ entry.film.poster_url }}" alt="{{ entry.film.title }}" class="score-poster" loading="lazy">
+        {% endif %}
+        <div class="score-film-info">
+          <strong class="score-film-title">{{ entry.film.title }}</strong>
+          <span class="score-film-year">{{ entry.film.year }}</span>
+          <div class="score-financials">
+            <span class="score-gross">${{ '{:,.0f}'.format(entry.gross) }}M</span>
+            {% if entry.film.oscar_wins %}
+            <span class="score-wins">🏆 ×{{ entry.film.oscar_wins }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="score-empty">— Not filled —</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Round history -->
+  {% if s.history %}
+  <div class="history-section">
+    <h2 class="history-title">Round History</h2>
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>Round</th><th>Spin</th><th>Film Drafted</th><th>Slot</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in s.history %}
+        <tr class="{% if not h.film %}passed{% endif %}">
+          <td>{{ h.round }}</td>
+          <td>{{ h.era }} × {{ h.studio }}</td>
+          <td>{{ h.film or '— Passed —' }}</td>
+          <td>{{ h.slot or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="score-actions">
+    <form action="/game/restart" method="POST">
+      <button type="submit" class="btn-primary">Play Again</button>
+    </form>
+  </div>
+
+</section>
+{% endblock %}

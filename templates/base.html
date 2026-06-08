@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Box Office Draft{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=DM+Serif+Display:ital@0;1&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="grain"></div>
+
+  <header class="site-header">
+    <div class="marquee-bulbs top-bulbs">
+      {% for i in range(20) %}<span class="bulb {% if i % 3 == 0 %}on{% endif %}"></span>{% endfor %}
+    </div>
+    <div class="header-inner">
+      <a href="/" class="wordmark">
+        <span class="wordmark-now">NOW</span>
+        <span class="wordmark-showing">SHOWING</span>
+        <span class="wordmark-draft">DRAFT</span>
+      </a>
+      {% if self.nav() %}
+      <nav class="header-nav">{% block nav %}{% endblock %}</nav>
+      {% endif %}
+    </div>
+    <div class="marquee-bulbs bottom-bulbs">
+      {% for i in range(20) %}<span class="bulb {% if i % 3 == 1 %}on{% endif %}"></span>{% endfor %}
+    </div>
+  </header>
+
+  <main class="site-main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>Powered by <a href="https://www.themoviedb.org" target="_blank">TMDB</a> &amp; <a href="https://www.omdbapi.com" target="_blank">OMDb</a></p>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

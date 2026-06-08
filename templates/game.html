@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Round {{ s.round }} — Box Office Draft{% endblock %}
+
+{% block nav %}
+<span class="nav-player">🎟 {{ s.player }}</span>
+<span class="nav-round">Round {{ s.round }}/{{ total_rounds }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="game-layout">
+
+  <!-- ── LEFT: Marquee Draft Board ─────────────────────────────────────── -->
+  <aside class="draft-board">
+    <h2 class="board-title">Your Marquee</h2>
+    <div class="marquee-slots">
+      {% for slot in slots %}
+      {% set film = s.marquee[slot.slot_number | string] %}
+      <div class="marquee-slot {% if film %}filled{% else %}empty{% endif %}"
+           data-slot="{{ slot.slot_number }}"
+           data-genre="{{ slot.genre or '' }}">
+        <div class="slot-label">
+          <span class="slot-icon">{{ slot.icon }}</span>
+          <span>{{ slot.label }}</span>
+        </div>
+        {% if film %}
+        <div class="slot-film">
+          {% if film.poster_url %}
+          <img src="{{ film.poster_url }}" alt="{{ film.title }}" class="slot-poster" loading="lazy">
+          {% endif %}
+          <div class="slot-film-info">
+            <strong>{{ film.title }}</strong>
+            <span class="slot-film-year">{{ film.year }}</span>
+            <span class="slot-film-gross">${{ '{:,.0f}'.format(film.gross_m) }}M</span>
+          </div>
+        </div>
+        {% else %}
+        <div class="slot-empty-label">— Empty —</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="board-total" id="running-total">
+      Total Gross: <strong>${{ '{:,.0f}'.format(s.marquee.values() | selectattr('gross_m') | sum(attribute='gross_m')) }}M</strong>
+    </div>
+  </aside>
+
+  <!-- ── RIGHT: Spin + Draft Panel ─────────────────────────────────────── -->
+  <section class="spin-panel">
+
+    <!-- Progress bar -->
+    <div class="progress-track">
+      {% for i in range(1, total_rounds + 1) %}
+      <div class="progress-pip {% if i < s.round %}done{% elif i == s.round %}current{% endif %}">{{ i }}</div>
+      {% endfor %}
+    </div>
+
+    <!-- Phase: SPIN -->
+    <div class="phase-spin" id="phase-spin" {% if s.phase != 'spin' %}style="display:none"{% endif %}>
+      <div class="reel-machine">
+        <h2 class="reel-title">Round {{ s.round }}</h2>
+        <p class="reel-sub">Spin to reveal your Era &amp; Studio</p>
+        <div class="reels" id="reels">
+          <div class="reel" id="reel-era">
+            <div class="reel-strip" id="strip-era">
+              {% for era in ["70s","80s","90s","00s","10s","20s"] %}
+              <div class="reel-item">{{ era }}</div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="reel-divider">×</div>
+          <div class="reel" id="reel-studio">
+            <div class="reel-strip" id="strip-studio">
+              {% for studio in ["Disney","Warner Bros","Universal","Paramount","Sony","Fox","MGM/UA","Indie"] %}
+              <div class="reel-item">{{ studio }}</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        <button class="btn-primary btn-spin" id="btn-spin">
+          <span>🎰 Spin the Reels</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Phase: DRAFT -->
+    <div class="phase-draft" id="phase-draft" {% if s.phase != 'draft' %}style="display:none"{% endif %}>
+      <div class="draft-header" id="draft-header">
+        <div class="spin-result" id="spin-result">
+          {% if s.spin %}
+          <span class="result-era">{{ s.spin.era }}</span>
+          <span class="result-sep">×</span>
+          <span class="result-studio">{{ s.spin.studio }}</span>
+          {% endif %}
+        </div>
+        <p class="draft-instruction">Select a film, then choose which slot to fill</p>
+      </div>
+
+      <div class="film-pool" id="film-pool">
+        {% for film in s.pool %}
+        <div class="film-card" data-id="{{ film.id }}" data-genres="{{ film.genre_str }}">
+          {% if film.poster_url %}
+          <img src="{{ film.poster_url }}" alt="{{ film.title }}" class="film-poster" loading="lazy">
+          {% else %}
+          <div class="film-poster-placeholder">🎬</div>
+          {% endif %}
+          <div class="film-card-body">
+            <h3 class="film-title">{{ film.title }}</h3>
+            <p class="film-meta">{{ film.year }} · {{ film.studio }}</p>
+            <div class="film-tags">
+              {% for tag in film.genre_tags %}
+              <span class="tag">{{ tag }}</span>
+              {% endfor %}
+            </div>
+            <div class="film-financials">
+              <span class="gross">${{ '{:,.0f}'.format(film.gross_m or 0) }}M gross</span>
+              {% if film.profit_m %}
+              <span class="profit {% if film.profit_m > 0 %}pos{% else %}neg{% endif %}">
+                {{ '+' if film.profit_m > 0 else '' }}${{ '{:,.0f}'.format(film.profit_m) }}M profit
+              </span>
+              {% endif %}
+            </div>
+            {% if film.oscar_noms %}
+            <p class="film-oscars">🏆 {{ film.oscar_noms }} nom{{ 's' if film.oscar_noms != 1 }} / {{ film.oscar_wins }} win{{ 's' if film.oscar_wins != 1 }}</p>
+            {% endif %}
+          </div>
+          <button class="btn-select" data-id="{{ film.id }}">Select</button>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Slot picker overlay (shown after selecting a film) -->
+      <div class="slot-picker" id="slot-picker" style="display:none">
+        <div class="picker-inner">
+          <h3 class="picker-title">Place <em id="picker-film-name"></em> in which slot?</h3>
+          <div class="picker-slots" id="picker-slots"></div>
+          <button class="btn-ghost" id="btn-cancel-pick">Cancel</button>
+        </div>
+      </div>
+
+      <div class="draft-actions">
+        <button class="btn-ghost btn-pass" id="btn-pass">Pass this round →</button>
+      </div>
+    </div>
+
+    <!-- Phase: DONE -->
+    <div class="phase-done" id="phase-done" {% if s.phase != 'done' %}style="display:none"{% endif %}>
+      <div class="done-card">
+        <h2>Marquee Complete!</h2>
+        <p>All 8 rounds finished. See how your lineup stacks up.</p>
+        <a href="/game/score" class="btn-primary">View Final Score →</a>
+      </div>
+    </div>
+
+  </section>
+
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/game.js') }}"></script>
+{% endblock %}

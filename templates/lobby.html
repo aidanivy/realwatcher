@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Box Office Draft — Enter the Marquee{% endblock %}
+
+{% block content %}
+<section class="lobby">
+  <div class="lobby-stage">
+
+    <div class="lobby-ticket">
+      <div class="ticket-hole"></div>
+      <div class="ticket-body">
+        <p class="ticket-admit">ADMIT ONE</p>
+        <h1 class="lobby-headline">
+          Build Your<br>
+          <em>Box Office</em><br>
+          Marquee
+        </h1>
+        <p class="lobby-sub">
+          Spin the reels. Draft the films. Fill your marquee<br>
+          with the highest-grossing lineup you can assemble.
+        </p>
+        <form action="/game/new" method="POST" class="lobby-form">
+          <div class="input-wrap">
+            <label for="player_name">Your Name</label>
+            <input
+              type="text"
+              id="player_name"
+              name="player_name"
+              placeholder="e.g. Cecil B."
+              maxlength="32"
+              autocomplete="off"
+            >
+          </div>
+          <button type="submit" class="btn-primary">
+            <span>Open the Curtain</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </form>
+      </div>
+      <div class="ticket-hole ticket-hole--right"></div>
+    </div>
+
+    <div class="lobby-rules">
+      <h2 class="rules-title">How It Works</h2>
+      <ol class="rules-list">
+        <li><strong>Spin</strong> to land on an Era &amp; Studio combination</li>
+        <li><strong>Choose</strong> a film from that pool to place on your marquee</li>
+        <li><strong>Fill</strong> all 8 genre slots across 8 rounds</li>
+        <li><strong>Score</strong> is the total worldwide gross of your lineup</li>
+      </ol>
+      <div class="slot-preview">
+        {% set icons = ["🎬","💥","👻","😂","🎭","💕","✨","🏆","💰","🃏"] %}
+        {% set labels = ["Action/Thriller I","Action/Thriller II","Horror","Comedy","Drama","Romance","Animated","Oscar Nominated","Blockbuster","Wildcard"] %}
+        {% for i in range(10) %}
+        <div class="slot-chip">
+          <span class="chip-icon">{{ icons[i] }}</span>
+          <span class="chip-label">{{ labels[i] }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}
