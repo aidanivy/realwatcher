@@ -140,12 +140,12 @@ STUDIOS = ["Disney", "Warner Brothers", "Universal", "Paramount",
 SCORING = {
     "oscar_win_bonus_m": 50,   # $M bonus if the Oscar Nominated slot film is also an Oscar winner
     "tiers": [
-        {"min": 7000, "grade": "PERFECT",     "headline": "THE GOLDEN AGE OF HOLLYWOOD"},
-        {"min": 5000, "grade": "OUTSTANDING", "headline": "DIAMOND HANDS"},
-        {"min": 3000, "grade": "GREAT",       "headline": "BOX OFFICE GOLD"},
-        {"min": 2000, "grade": "SOLID",       "headline": "RESPECTABLE RUN"},
-        {"min": 1000, "grade": "MIXED",       "headline": "CRITICS ARE DIVIDED"},
-        {"min":  800, "grade": "FLOP",        "headline": "STRAIGHT TO NETFLIX"},
+        {"min": 5500, "grade": "PERFECT",     "headline": "THE GOLDEN AGE OF HOLLYWOOD"},
+        {"min": 4000, "grade": "OUTSTANDING", "headline": "DIAMOND HANDS"},
+        {"min": 2400, "grade": "GREAT",       "headline": "BOX OFFICE GOLD"},
+        {"min": 1400, "grade": "SOLID",       "headline": "RESPECTABLE RUN"},
+        {"min":  800, "grade": "MIXED",       "headline": "CRITICS ARE DIVIDED"},
+        {"min":  600, "grade": "FLOP",        "headline": "STRAIGHT TO NETFLIX"},
     ],
 }
 
