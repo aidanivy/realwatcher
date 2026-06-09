@@ -11,19 +11,38 @@
   <div class="score-hero">
     <p class="score-eyebrow">Final Marquee</p>
     <h1 class="score-name">{{ s.player }}</h1>
-    <div class="score-total-wrap">
-      <span class="score-label">Total Worldwide Gross</span>
-      <span class="score-total">${{ '{:,.0f}'.format(result.total_gross) }}M</span>
+
+    <div class="score-grade-wrap">
+      <span class="score-grade grade-{{ result.tier.grade | lower }}">{{ result.tier.grade }}</span>
+      <p class="score-headline">"{{ result.tier.headline }}"</p>
     </div>
-    {% if result.total_profit %}
-    <div class="score-profit-wrap">
-      <span class="score-label">Total Profit</span>
-      <span class="score-profit {% if result.total_profit > 0 %}pos{% endif %}">
-        {{ '+' if result.total_profit > 0 else '' }}${{ '{:,.0f}'.format(result.total_profit) }}M
+
+    <div class="score-total-wrap">
+      <span class="score-label">Final Score</span>
+      <span class="score-total">{{ result.final_score | dollars }}</span>
+    </div>
+
+    <div class="score-breakdown">
+      <span class="breakdown-item">Profit: {{ result.total_profit | dollars }}</span>
+      {% if result.oscar_bonus > 0 %}
+      <span class="breakdown-sep">+</span>
+      <span class="breakdown-item">
+        Oscar winner in nominated slot +{{ result.oscar_bonus | dollars }} bonus
       </span>
+      {% endif %}
+    </div>
+
+    <p class="score-filled">{{ result.filled }} / 10 slots filled</p>
+
+    {% if s.mode == 'realwatcher' %}
+    <div class="score-mode-badge score-mode-rw">
+      <span class="rw-hash">#</span>RealWatcher
+    </div>
+    {% else %}
+    <div class="score-mode-badge score-mode-classic">
+      Classic Mode
     </div>
     {% endif %}
-    <p class="score-filled">{{ result.filled }} / 10 slots filled</p>
   </div>
 
   <div class="scorecard-grid">
@@ -41,12 +60,12 @@
         <div class="score-film-info">
           <strong class="score-film-title">{{ entry.film.title }}</strong>
           <span class="score-film-year">{{ entry.film.year }}</span>
-          <div class="score-financials">
-            <span class="score-gross">${{ '{:,.0f}'.format(entry.gross) }}M</span>
-            {% if entry.film.oscar_wins %}
-            <span class="score-wins">🏆 ×{{ entry.film.oscar_wins }}</span>
-            {% endif %}
-          </div>
+          {% if entry.film.id == result.top_film_id %}
+          <span class="score-top-earner">⭐ Highest Earner</span>
+          {% endif %}
+          {% if entry.oscar_wins %}
+          <span class="score-wins">🏆 {{ entry.oscar_wins }} win{{ 's' if entry.oscar_wins != 1 }}</span>
+          {% endif %}
         </div>
       </div>
       {% else %}
@@ -56,7 +75,6 @@
     {% endfor %}
   </div>
 
-  <!-- Round history -->
   {% if s.history %}
   <div class="history-section">
     <h2 class="history-title">Round History</h2>
@@ -68,10 +86,10 @@
       </thead>
       <tbody>
         {% for h in s.history %}
-        <tr class="{% if not h.film %}passed{% endif %}">
+        <tr>
           <td>{{ h.round }}</td>
           <td>{{ h.era }} × {{ h.studio }}</td>
-          <td>{{ h.film or '— Passed —' }}</td>
+          <td>{{ h.film or '—' }}</td>
           <td>{{ h.slot or '—' }}</td>
         </tr>
         {% endfor %}
@@ -87,4 +105,70 @@
   </div>
 
 </section>
+{% endblock %}
+
+{% block scripts %}
+{% if result.tier.grade == "PERFECT" %}
+<script>
+(function () {
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9998';
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+
+  let W = canvas.width  = window.innerWidth;
+  let H = canvas.height = window.innerHeight;
+  window.addEventListener('resize', () => {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  });
+
+  const COLORS = ['#C9A84C','#E8C97A','#D4A017','#F5C842','#8B6914'];
+  const COUNT  = 120;
+
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  function spawn() {
+    const r = rand(5, 12);
+    return {
+      x:   rand(0, W),
+      y:   rand(-60, -r),
+      vx:  rand(-1.2, 1.2),
+      vy:  rand(1.5, 4.5),
+      r,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      alpha: rand(0.6, 1),
+    };
+  }
+
+  const particles = Array.from({ length: COUNT }, spawn);
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    for (const p of particles) {
+      p.x  += p.vx;
+      p.vy += 0.06;
+      p.y  += p.vy;
+
+      if (p.y - p.r > H) Object.assign(p, spawn(), { y: rand(-60, -p.r) });
+
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle   = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur  = 6;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  requestAnimationFrame(draw);
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -10,7 +10,6 @@ const phaseSpin  = document.getElementById('phase-spin');
 const phaseDraft = document.getElementById('phase-draft');
 const phaseDone  = document.getElementById('phase-done');
 const btnSpin    = document.getElementById('btn-spin');
-const btnPass    = document.getElementById('btn-pass');
 const filmPool   = document.getElementById('film-pool');
 const slotPicker = document.getElementById('slot-picker');
 const pickerSlots = document.getElementById('picker-slots');
@@ -25,6 +24,18 @@ const stripStudio = document.getElementById('strip-studio');
 // ── Reel animation ───────────────────────────────────────────────────────────
 const ERA_LIST    = ['70s','80s','90s','00s','10s','20s'];
 const STUDIO_LIST = ['Disney','Warner Bros','Universal','Paramount','Sony','Fox','MGM/UA','Indie'];
+
+// Maps DB studio names → reel display labels
+const STUDIO_DISPLAY = {
+  'Disney':           'Disney',
+  'Warner Brothers':  'Warner Bros',
+  'Universal':        'Universal',
+  'Paramount':        'Paramount',
+  'Sony/Columbia':    'Sony',
+  '20th Century Fox': 'Fox',
+  'MGM/UA':           'MGM/UA',
+  'Independent':      'Indie',
+};
 const ITEM_H = 64; // px — must match CSS .reel-item height
 
 function animateReel(strip, items, finalIdx, duration = 1800) {
@@ -84,7 +95,7 @@ if (btnSpin) {
 
       // Find the correct final index for the landed value
       const eraIdx    = ERA_LIST.indexOf(data.era);
-      const studioIdx = STUDIO_LIST.indexOf(data.studio);
+      const studioIdx = STUDIO_LIST.indexOf(STUDIO_DISPLAY[data.studio] ?? data.studio);
 
       await Promise.all([
         animateReel(stripEra,    ERA_LIST,    eraIdx    >= 0 ? eraIdx    : 0),
@@ -121,7 +132,7 @@ if (btnSpin) {
 function renderPool(pool) {
   if (!filmPool) return;
   if (!pool.length) {
-    filmPool.innerHTML = '<p style="color:var(--smoke);text-align:center;padding:40px">No films found for this combination — pass to spin again.</p>';
+    filmPool.innerHTML = '<p style="color:var(--smoke);text-align:center;padding:40px">No films available for this combination.</p>';
     return;
   }
   filmPool.innerHTML = pool.map(film => `
@@ -135,13 +146,7 @@ function renderPool(pool) {
         <div class="film-tags">
           ${(film.genre_tags || film.genre_str?.split('|') || []).map(t => `<span class="tag">${escHtml(t)}</span>`).join('')}
         </div>
-        <div class="film-financials">
-          <span class="gross">$${fmt(film.gross_m)}M gross</span>
-          ${film.profit_m != null
-            ? `<span class="profit ${film.profit_m >= 0 ? 'pos' : 'neg'}">${film.profit_m >= 0 ? '+' : ''}$${fmt(film.profit_m)}M profit</span>`
-            : ''}
-        </div>
-        ${film.oscar_noms ? `<p class="film-oscars">🏆 ${film.oscar_noms} nom${film.oscar_noms !== 1 ? 's' : ''} / ${film.oscar_wins} win${film.oscar_wins !== 1 ? 's' : ''}</p>` : ''}
+        ${film.gross_m != null ? `<div class="film-financials"><span class="gross">$${fmt(film.gross_m)}M worldwide</span></div>` : ''}
       </div>
       <button class="btn-select" data-id="${film.id}">Select</button>
     </div>
@@ -238,24 +243,6 @@ async function draftFilm(filmId, slotNumber) {
   } catch (err) {
     toast('Network error — please try again.', 'error');
   }
-}
-
-// ── Pass button ───────────────────────────────────────────────────────────────
-if (btnPass) {
-  btnPass.addEventListener('click', async () => {
-    if (!confirm('Pass this round? You will not draft a film.')) return;
-    try {
-      const res  = await fetch('/game/pass', { method: 'POST' });
-      const data = await res.json();
-      if (data.phase === 'done') {
-        window.location.href = '/game/score';
-      } else {
-        window.location.reload();
-      }
-    } catch (err) {
-      toast('Network error — please try again.', 'error');
-    }
-  });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

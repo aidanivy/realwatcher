@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# Flask session files
+flask_session/
+
+# Database (do not commit — upload separately or use a hosted DB)
+*.db
+*.sqlite3
+movies_raw.json
+posters/
+
+# OS
+.DS_Store
+Thumbs.db

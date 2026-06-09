@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Box Office Draft — Choose Your Mode{% endblock %}
+
+{% block content %}
+<section class="mode-select">
+  <div class="mode-select-stage">
+
+    <div class="mode-select-header">
+      <p class="mode-select-eyebrow">Admit One</p>
+      <h1 class="mode-select-title">Choose Your Mode</h1>
+    </div>
+
+    <div class="mode-cards">
+
+      <!-- Classic Mode -->
+      <form action="/game/mode" method="POST" class="mode-card mode-card-classic">
+        <input type="hidden" name="mode" value="classic">
+        <div class="mode-card-inner">
+          <p class="mode-card-label">Classic</p>
+          <h2 class="mode-card-name">Classic Mode</h2>
+          <p class="mode-card-desc">
+            Worldwide grosses on display.<br>
+            Films ranked by earnings.<br>
+            Strategy over instinct.
+          </p>
+          <div class="mode-card-tags">
+            <span class="mode-tag">Gross Visible</span>
+            <span class="mode-tag">Sorted by Revenue</span>
+          </div>
+          <button type="submit" class="btn-primary mode-btn">
+            <span>Play Classic</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </form>
+
+      <!-- #RealWatcher Mode -->
+      <form action="/game/mode" method="POST" class="mode-card mode-card-realwatcher">
+        <input type="hidden" name="mode" value="realwatcher">
+        <div class="mode-card-inner">
+          <p class="mode-card-label">Expert</p>
+          <h2 class="mode-card-name"><span class="rw-hash">#</span>RealWatcher</h2>
+          <p class="mode-card-desc">
+            No financials. No rankings.<br>
+            Pure film knowledge.<br>
+            Do you really know your movies?
+          </p>
+          <div class="mode-card-tags">
+            <span class="mode-tag rw-tag">No Data</span>
+            <span class="mode-tag rw-tag">Pure Instinct</span>
+          </div>
+          <button type="submit" class="btn-primary mode-btn rw-btn">
+            <span>Play #RealWatcher</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -7,7 +7,6 @@ Routes:
   GET  /game              → main game view (slot machine + draft board)
   POST /game/spin         → spin Era × Studio wheels, return film pool
   POST /game/draft        → draft a film into a marquee slot
-  POST /game/pass         → pass on current round (no film drafted)
   GET  /game/score        → final scorecard
   POST /game/restart      → clear session, back to lobby
   GET  /api/state         → JSON dump of current game state (for JS polling)
@@ -21,11 +20,73 @@ from flask import (
     Flask, render_template, request, session,
     redirect, url_for, jsonify, g
 )
+from flask_session import Session
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
 
-DB_PATH = os.environ.get("DB_PATH", "moviegame.db")
+# Server-side sessions — Redis on Railway, filesystem locally
+_SESSION_TYPE = "redis" if os.environ.get("REDIS_URL") else "filesystem"
+app.config.update(
+    SESSION_TYPE=_SESSION_TYPE,
+    SESSION_PERMANENT=False,
+    SESSION_USE_SIGNER=True,
+    SESSION_FILE_DIR=os.path.join(os.path.dirname(os.path.abspath(__file__)), "flask_session"),
+)
+if _SESSION_TYPE == "redis":
+    import redis as _redis
+    app.config["SESSION_REDIS"] = _redis.from_url(os.environ["REDIS_URL"])
+Session(app)
+
+# Always resolve DB path relative to this file, not the working directory
+_HERE = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.environ.get("DB_PATH", os.path.join(_HERE, "moviegame.db"))
+
+# -- Startup diagnostics -----------------------------------------------------
+def _check_db():
+    if not os.path.exists(DB_PATH):
+        print('\n  ✗ DATABASE NOT FOUND: ' + DB_PATH)
+        print('    Run load_movies_to_db.py and place moviegame.db next to app.py')
+        print('    Expected location: ' + _HERE + '\n')
+        return
+    try:
+        con = sqlite3.connect(DB_PATH)
+        count = con.execute('SELECT COUNT(*) FROM movies').fetchone()[0]
+        genres = con.execute(
+            'SELECT genre, COUNT(*) FROM movie_genres GROUP BY genre ORDER BY genre'
+        ).fetchall()
+        con.close()
+        print('\n  Database: ' + DB_PATH)
+        print('  Movies loaded: ' + str(count))
+        print('  Genre coverage:')
+        for genre, n in genres:
+            print('    ' + genre.ljust(22) + ' ' + str(n) + ' films')
+        print()
+    except Exception as e:
+        print('\n  Database error: ' + str(e) + '\n')
+
+_check_db()
+
+
+def _build_valid_combos() -> set:
+    """Return set of (era, studio) tuples that have >= 5 films in the DB."""
+    if not os.path.exists(DB_PATH):
+        return set()
+    try:
+        con = sqlite3.connect(DB_PATH)
+        rows = con.execute(
+            "SELECT era, studio FROM movies GROUP BY era, studio HAVING COUNT(*) >= 5"
+        ).fetchall()
+        con.close()
+        combos = {(r[0], r[1]) for r in rows}
+        print(f"  Valid spin combos: {len(combos)}")
+        return combos
+    except Exception as e:
+        print(f"  Could not build valid combos: {e}")
+        return set()
+
+
+VALID_COMBOS = _build_valid_combos()
 
 # ── Slot / game config (must match load_movies_to_db.py) ──────────────────────
 MARQUEE_SLOTS = [
@@ -40,10 +101,23 @@ MARQUEE_SLOTS = [
     {"slot_number": 9,  "genre": "Blockbuster",       "label": "Blockbuster",          "icon": "💰"},
     {"slot_number": 10, "genre": None,                "label": "Wildcard",             "icon": "🃏"},
 ]
-TOTAL_ROUNDS = 8   # player fills 8 of the 10 slots per game
-ERAS    = ["70s", "80s", "90s", "00s", "10s", "20s"]
+TOTAL_ROUNDS = 10  # one round per slot — player fills all 10
+ERAS    = ["1970s", "1980s", "1990s", "2000s", "2010s", "2020s"]
 STUDIOS = ["Disney", "Warner Brothers", "Universal", "Paramount",
            "Sony/Columbia", "20th Century Fox", "MGM/UA", "Independent"]
+
+# ── Scoring config — adjust thresholds here only ─────────────────────────────
+SCORING = {
+    "oscar_win_bonus_m": 50,   # $M bonus if the Oscar Nominated slot film is also an Oscar winner
+    "tiers": [
+        {"min": 7000, "grade": "PERFECT",     "headline": "THE GOLDEN AGE OF HOLLYWOOD"},
+        {"min": 5000, "grade": "OUTSTANDING", "headline": "DIAMOND HANDS"},
+        {"min": 3000, "grade": "GREAT",       "headline": "BOX OFFICE GOLD"},
+        {"min": 2000, "grade": "SOLID",       "headline": "RESPECTABLE RUN"},
+        {"min": 1000, "grade": "MIXED",       "headline": "CRITICS ARE DIVIDED"},
+        {"min":  800, "grade": "FLOP",        "headline": "STRAIGHT TO NETFLIX"},
+    ],
+}
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
 def get_db():
@@ -65,10 +139,11 @@ def query_one(sql, params=()):
     return get_db().execute(sql, params).fetchone()
 
 # ── Game state helpers ────────────────────────────────────────────────────────
-def fresh_state(player_name: str) -> dict:
+def fresh_state(player_name: str, mode: str = "realwatcher") -> dict:
     """Return a blank game state dict stored in session."""
     return {
         "player":       player_name,
+        "mode":         mode,
         "round":        1,              # 1-indexed, max TOTAL_ROUNDS
         "phase":        "spin",         # spin | draft | done
         "spin":         None,           # {"era": ..., "studio": ...}
@@ -88,8 +163,25 @@ def save_state(s: dict):
     session["game"] = s
     session.modified = True
 
-def film_row_to_dict(row) -> dict:
-    """Convert a sqlite3.Row to a plain dict for JSON / session storage."""
+_PRIVATE_FIELDS = {"gross_m", "budget_m", "profit_m", "oscar_noms", "oscar_wins",
+                   "overview", "tmdb_url", "era"}
+
+
+def film_row_to_dict(row, keep_gross=False) -> dict:
+    """Convert a sqlite3.Row to a client-safe dict. gross_m kept for Classic mode."""
+    d = dict(row)
+    strip = _PRIVATE_FIELDS - ({"gross_m"} if keep_gross else set())
+    for f in strip:
+        d.pop(f, None)
+    d["genre_tags"] = [t for t in (d.get("genre_str") or "").split("|") if t]
+    return d
+
+
+def film_full(film_id: int) -> dict:
+    """Fetch all fields for a film including private scoring data. Server-side only."""
+    row = query_one("SELECT * FROM movies WHERE id = ?", (film_id,))
+    if not row:
+        return {}
     d = dict(row)
     d["genre_tags"] = [t for t in (d.get("genre_str") or "").split("|") if t]
     return d
@@ -115,54 +207,136 @@ def eligible_slots_for_film(s: dict, film: dict) -> list[int]:
         if slot_accepts(sl, film)
     ]
 
+def spinnable_combos(s: dict) -> list:
+    """
+    Return valid combos that have at least one film eligible for an open slot.
+    If Wildcard is still open, any valid combo qualifies (Wildcard accepts anything).
+    Falls back to all VALID_COMBOS if the filtered set is empty.
+    """
+    open_genre_set = {sl["genre"] for sl in open_slots(s)}
+
+    if None in open_genre_set:          # Wildcard open — any combo works
+        return list(VALID_COMBOS)
+
+    genres = list(open_genre_set)
+    already = s["drafted_ids"]
+    placeholders_g = ",".join("?" * len(genres))
+
+    if already:
+        placeholders_d = ",".join("?" * len(already))
+        sql = f"""
+            SELECT DISTINCT m.era, m.studio
+            FROM movies m
+            JOIN movie_genres mg ON mg.movie_id = m.id
+            WHERE mg.genre IN ({placeholders_g})
+              AND m.id NOT IN ({placeholders_d})
+        """
+        params = genres + already
+    else:
+        sql = f"""
+            SELECT DISTINCT m.era, m.studio
+            FROM movies m
+            JOIN movie_genres mg ON mg.movie_id = m.id
+            WHERE mg.genre IN ({placeholders_g})
+        """
+        params = genres
+
+    rows = query(sql, params)
+    eligible = {(r["era"], r["studio"]) for r in rows} & VALID_COMBOS
+    return list(eligible) if eligible else list(VALID_COMBOS)
+
 # ── Scoring ───────────────────────────────────────────────────────────────────
 def compute_score(s: dict) -> dict:
     """
-    Tally worldwide gross across all filled marquee slots.
-    Returns {"total_gross": float, "total_profit": float, "filled": int,
-             "slots": [{slot, film, gross, profit}, ...]}
+    Score = sum of profit_m across all drafted films + Oscar win bonuses.
+    Re-fetches full film data from DB so private fields are never in the session.
     """
-    slots_detail = []
-    total_gross  = 0.0
-    total_profit = 0.0
-    filled = 0
+    slots_detail     = []
+    total_profit     = 0.0
+    oscar_bonus      = 0.0
+    filled           = 0
+    top_profit       = None
+    top_film_id      = None
 
     for sl in MARQUEE_SLOTS:
-        film = s["marquee"].get(str(sl["slot_number"]))
-        gross  = float(film["gross_m"]  or 0) if film else 0.0
-        profit = float(film["profit_m"] or 0) if film else 0.0
-        total_gross  += gross
-        total_profit += profit
-        if film:
+        film_stub = s["marquee"].get(str(sl["slot_number"]))
+        if film_stub:
+            full       = film_full(film_stub["id"])
+            profit     = float(full.get("profit_m") or 0)
+            oscar_wins = int(full.get("oscar_wins") or 0)
+            total_profit += profit
+            if sl["slot_number"] == 8 and oscar_wins > 0:
+                oscar_bonus = SCORING["oscar_win_bonus_m"]
+            if top_profit is None or profit > top_profit:
+                top_profit  = profit
+                top_film_id = film_stub["id"]
             filled += 1
+        else:
+            oscar_wins = 0
         slots_detail.append({
-            "slot":   sl,
-            "film":   film,
-            "gross":  gross,
-            "profit": profit,
+            "slot":       sl,
+            "film":       film_stub,
+            "oscar_wins": oscar_wins,
         })
 
+    final_score = round(total_profit + oscar_bonus, 1)
+
+    tier = SCORING["tiers"][-1]
+    for t in SCORING["tiers"]:
+        if final_score >= t["min"]:
+            tier = t
+            break
+
     return {
-        "total_gross":  round(total_gross,  1),
         "total_profit": round(total_profit, 1),
-        "filled":       filled,
-        "slots":        slots_detail,
+        "oscar_bonus":  round(oscar_bonus, 1),
+        "top_film_id":  top_film_id,
+        "final_score":      final_score,
+        "filled":           filled,
+        "slots":            slots_detail,
+        "tier":             tier,
     }
+
+# ── Template helpers ─────────────────────────────────────────────────────────
+@app.template_filter("dollars")
+def dollars_filter(value):
+    """Format a dollar value in $M, switching to $B if >= 1000."""
+    if value is None:
+        return "—"
+    if abs(value) >= 1000:
+        return f"${value / 1000:.1f}B"
+    return f"${value:,.0f}M"
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  ROUTES
 # ══════════════════════════════════════════════════════════════════════════════
 
 @app.route("/")
-def lobby():
+def index():
     session.clear()
-    return render_template("lobby.html")
+    return render_template("mode_select.html")
+
+
+@app.post("/game/mode")
+def game_mode():
+    mode = request.form.get("mode", "realwatcher")
+    if mode not in ("classic", "realwatcher"):
+        mode = "realwatcher"
+    session["pending_mode"] = mode
+    return redirect(url_for("lobby"))
+
+
+@app.route("/lobby")
+def lobby():
+    mode = session.get("pending_mode", "realwatcher")
+    return render_template("lobby.html", mode=mode)
 
 
 @app.post("/game/new")
 def game_new():
     player = request.form.get("player_name", "").strip() or "Player 1"
-    save_state(fresh_state(player))
+    mode   = request.form.get("mode", "realwatcher")
+    save_state(fresh_state(player, mode))
     return redirect(url_for("game"))
 
 
@@ -187,26 +361,36 @@ def game_spin():
     if not s or s["phase"] != "spin":
         return jsonify({"error": "Not in spin phase"}), 400
 
-    era    = random.choice(ERAS)
-    studio = random.choice(STUDIOS)
+    valid = spinnable_combos(s)
+    era, studio = random.choice(valid)
 
-    # Pull eligible films for this combo — exclude already drafted
-    already = s["drafted_ids"]
-    placeholders = ",".join("?" * len(already)) if already else "NULL"
+    mode       = s.get("mode", "realwatcher")
+    keep_gross = mode == "classic"
+    order_by   = "m.gross_m DESC" if mode == "classic" else "m.title ASC"
+    already    = s["drafted_ids"]
+
+    not_in_clause = ""
+    if already:
+        placeholders  = ",".join("?" * len(already))
+        not_in_clause = f"AND m.id NOT IN ({placeholders})"
+
     sql = f"""
         SELECT DISTINCT
             m.id, m.title, m.year, m.era, m.studio,
-            m.gross_m, m.profit_m, m.oscar_noms, m.oscar_wins,
-            m.poster_url, m.tmdb_url, m.overview, m.genre_str
+            m.gross_m, m.poster_url, m.tmdb_url, m.overview, m.genre_str
         FROM movies m
         WHERE m.era = ? AND m.studio = ?
-          AND m.id NOT IN ({placeholders if already else 'SELECT NULL'})
-        ORDER BY m.gross_m DESC
-        LIMIT 12
+          {not_in_clause}
+        ORDER BY {order_by}
+        LIMIT 20
     """
     params = [era, studio] + already
+
     rows = query(sql, params)
-    pool = [film_row_to_dict(r) for r in rows]
+    pool = [film_row_to_dict(r, keep_gross=keep_gross) for r in rows]
+
+    # Debug: log the spin result to terminal
+    print(f"  Spin: {era} x {studio} -> {len(pool)} films found")
 
     s["spin"]  = {"era": era, "studio": studio}
     s["pool"]  = pool
@@ -289,46 +473,19 @@ def game_draft():
     })
 
 
-@app.post("/game/pass")
-def game_pass():
-    """Skip this round without drafting a film."""
-    s = state()
-    if not s or s["phase"] != "draft":
-        return jsonify({"error": "Not in draft phase"}), 400
-
-    s["history"].append({
-        "round":  s["round"],
-        "era":    s["spin"]["era"],
-        "studio": s["spin"]["studio"],
-        "film":   None,
-        "slot":   None,
-    })
-    s["round"] += 1
-    s["pool"]   = []
-    s["spin"]   = None
-
-    if s["round"] > TOTAL_ROUNDS:
-        s["phase"] = "done"
-    else:
-        s["phase"] = "spin"
-
-    save_state(s)
-    return jsonify({"ok": True, "phase": s["phase"], "round": s["round"]})
-
-
 @app.route("/game/score")
 def score():
     s = state()
     if not s:
         return redirect(url_for("lobby"))
     result = compute_score(s)
-    return render_template("score.html", s=s, result=result, slots=MARQUEE_SLOTS)
+    return render_template("score.html", s=s, result=result, slots=MARQUEE_SLOTS, scoring=SCORING)
 
 
 @app.post("/game/restart")
 def restart():
     session.clear()
-    return redirect(url_for("lobby"))
+    return redirect(url_for("index"))
 
 
 @app.get("/api/state")

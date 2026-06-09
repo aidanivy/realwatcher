@@ -9,6 +9,9 @@
       <div class="ticket-hole"></div>
       <div class="ticket-body">
         <p class="ticket-admit">ADMIT ONE</p>
+        <div class="lobby-mode-badge {% if mode == 'realwatcher' %}badge-rw{% else %}badge-classic{% endif %}">
+          {% if mode == 'realwatcher' %}<span class="rw-hash">#</span>RealWatcher{% else %}Classic Mode{% endif %}
+        </div>
         <h1 class="lobby-headline">
           Build Your<br>
           <em>Box Office</em><br>
@@ -19,6 +22,7 @@
           with the highest-grossing lineup you can assemble.
         </p>
         <form action="/game/new" method="POST" class="lobby-form">
+          <input type="hidden" name="mode" value="{{ mode }}">
           <div class="input-wrap">
             <label for="player_name">Your Name</label>
             <input
@@ -44,8 +48,8 @@
       <ol class="rules-list">
         <li><strong>Spin</strong> to land on an Era &amp; Studio combination</li>
         <li><strong>Choose</strong> a film from that pool to place on your marquee</li>
-        <li><strong>Fill</strong> all 8 genre slots across 8 rounds</li>
-        <li><strong>Score</strong> is the total worldwide gross of your lineup</li>
+        <li><strong>Fill</strong> all 10 genre slots across 10 rounds</li>
+        <li><strong>Score</strong> is the total profit of your lineup, plus an Oscar bonus</li>
       </ol>
       <div class="slot-preview">
         {% set icons = ["🎬","💥","👻","😂","🎭","💕","✨","🏆","💰","🃏"] %}

@@ -4,6 +4,9 @@
 {% block nav %}
 <span class="nav-player">🎟 {{ s.player }}</span>
 <span class="nav-round">Round {{ s.round }}/{{ total_rounds }}</span>
+<span class="nav-mode-badge {% if s.mode == 'realwatcher' %}badge-rw{% else %}badge-classic{% endif %}">
+  {% if s.mode == 'realwatcher' %}<span class="rw-hash">#</span>RealWatcher{% else %}Classic{% endif %}
+</span>
 {% endblock %}
 
 {% block content %}
@@ -30,7 +33,6 @@
           <div class="slot-film-info">
             <strong>{{ film.title }}</strong>
             <span class="slot-film-year">{{ film.year }}</span>
-            <span class="slot-film-gross">${{ '{:,.0f}'.format(film.gross_m) }}M</span>
           </div>
         </div>
         {% else %}
@@ -40,7 +42,7 @@
       {% endfor %}
     </div>
     <div class="board-total" id="running-total">
-      Total Gross: <strong>${{ '{:,.0f}'.format(s.marquee.values() | selectattr('gross_m') | sum(attribute='gross_m')) }}M</strong>
+      Slots filled: <strong>{{ s.marquee.values() | select | list | length }} / 10</strong>
     </div>
   </aside>
 
@@ -111,16 +113,10 @@
               <span class="tag">{{ tag }}</span>
               {% endfor %}
             </div>
+            {% if film.gross_m %}
             <div class="film-financials">
-              <span class="gross">${{ '{:,.0f}'.format(film.gross_m or 0) }}M gross</span>
-              {% if film.profit_m %}
-              <span class="profit {% if film.profit_m > 0 %}pos{% else %}neg{% endif %}">
-                {{ '+' if film.profit_m > 0 else '' }}${{ '{:,.0f}'.format(film.profit_m) }}M profit
-              </span>
-              {% endif %}
+              <span class="gross">${{ '{:,.0f}'.format(film.gross_m) }}M worldwide</span>
             </div>
-            {% if film.oscar_noms %}
-            <p class="film-oscars">🏆 {{ film.oscar_noms }} nom{{ 's' if film.oscar_noms != 1 }} / {{ film.oscar_wins }} win{{ 's' if film.oscar_wins != 1 }}</p>
             {% endif %}
           </div>
           <button class="btn-select" data-id="{{ film.id }}">Select</button>
@@ -137,9 +133,6 @@
         </div>
       </div>
 
-      <div class="draft-actions">
-        <button class="btn-ghost btn-pass" id="btn-pass">Pass this round →</button>
-      </div>
     </div>
 
     <!-- Phase: DONE -->
