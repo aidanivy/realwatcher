@@ -99,7 +99,12 @@
   {% endif %}
 
   <div class="score-actions">
-    <form action="/game/restart" method="POST">
+    {% if s.share_token %}
+    <button class="btn-share" id="btn-share" data-url="{{ request.host_url }}s/{{ s.share_token }}">
+      Share Your Marquee
+    </button>
+    {% endif %}
+    <form action="/game/restart" method="POST" style="margin-top:12px">
       <button type="submit" class="btn-primary">Play Again</button>
     </form>
     <a href="/leaderboard" class="btn-ghost" style="margin-top:12px;display:inline-block">View Leaderboard</a>
@@ -109,6 +114,21 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+const btnShare = document.getElementById('btn-share');
+if (btnShare) {
+  btnShare.addEventListener('click', async () => {
+    const url = btnShare.dataset.url;
+    if (navigator.share) {
+      navigator.share({ title: 'My Box Office Marquee', url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      btnShare.textContent = 'Link Copied!';
+      setTimeout(() => btnShare.textContent = 'Share Your Marquee', 2000);
+    }
+  });
+}
+</script>
 {% if result.tier.grade == "PERFECT" %}
 <script>
 (function () {

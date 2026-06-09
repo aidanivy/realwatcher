@@ -582,6 +582,15 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
 
 /* Score actions */
 .score-actions { text-align: center; padding-bottom: 40px; }
+.btn-share {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: transparent; border: 2px solid var(--gold);
+  color: var(--gold); font-family: var(--ff-display);
+  font-size: 1rem; font-weight: 700; letter-spacing: .05em;
+  padding: 12px 28px; border-radius: var(--radius);
+  cursor: pointer; transition: background .2s, color .2s;
+}
+.btn-share:hover { background: var(--gold); color: var(--ink); }
 
 /* ── Leaderboard ─────────────────────────────────────────────────────────────── */
 .leaderboard { padding: 40px 20px 60px; }

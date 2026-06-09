@@ -12,8 +12,10 @@ Routes:
   GET  /api/state         → JSON dump of current game state (for JS polling)
 """
 
+import json
 import os
 import random
+import secrets
 import sqlite3
 from datetime import datetime, timezone
 from flask import (
@@ -80,9 +82,16 @@ def _ensure_scores_table():
                 mode        TEXT    NOT NULL,
                 final_score INTEGER NOT NULL,
                 grade       TEXT    NOT NULL,
-                played_at   TEXT    NOT NULL
+                played_at   TEXT    NOT NULL,
+                share_token TEXT    UNIQUE,
+                result_json TEXT
             )
         """)
+        for col, defn in [("share_token", "TEXT UNIQUE"), ("result_json", "TEXT")]:
+            try:
+                con.execute(f"ALTER TABLE scores ADD COLUMN {col} {defn}")
+            except Exception:
+                pass
         con.commit()
         con.close()
     except Exception as e:
@@ -503,20 +512,60 @@ def score():
         return redirect(url_for("lobby"))
     result = compute_score(s)
     if not s.get("score_saved") and s.get("phase") == "done":
+        token = secrets.token_urlsafe(8)
+        snapshot = {
+            "player":       s["player"],
+            "mode":         s.get("mode", "realwatcher"),
+            "grade":        result["tier"]["grade"],
+            "headline":     result["tier"]["headline"],
+            "final_score":  result["final_score"],
+            "total_profit": result["total_profit"],
+            "oscar_bonus":  result["oscar_bonus"],
+            "filled":       result["filled"],
+            "top_film_id":  result["top_film_id"],
+            "slots": [
+                {
+                    "slot_number": e["slot"]["slot_number"],
+                    "label":       e["slot"]["label"],
+                    "icon":        e["slot"]["icon"],
+                    "film": {
+                        "id":         e["film"]["id"],
+                        "title":      e["film"]["title"],
+                        "year":       e["film"]["year"],
+                        "poster_url": e["film"].get("poster_url"),
+                    } if e["film"] else None,
+                    "oscar_wins": e.get("oscar_wins", 0),
+                }
+                for e in result["slots"]
+            ],
+        }
         try:
             db = get_db()
             db.execute(
-                "INSERT INTO scores (player, mode, final_score, grade, played_at) VALUES (?,?,?,?,?)",
+                """INSERT INTO scores
+                   (player, mode, final_score, grade, played_at, share_token, result_json)
+                   VALUES (?,?,?,?,?,?,?)""",
                 (s["player"], s.get("mode", "realwatcher"),
                  result["final_score"], result["tier"]["grade"],
-                 datetime.now(timezone.utc).isoformat())
+                 datetime.now(timezone.utc).isoformat(),
+                 token, json.dumps(snapshot))
             )
             db.commit()
         except Exception:
             pass
         s["score_saved"] = True
+        s["share_token"] = token
         save_state(s)
     return render_template("score.html", s=s, result=result, slots=MARQUEE_SLOTS, scoring=SCORING)
+
+
+@app.get("/s/<token>")
+def shared_score(token):
+    row = query_one("SELECT result_json FROM scores WHERE share_token = ?", (token,))
+    if not row:
+        return redirect(url_for("index"))
+    snapshot = json.loads(row["result_json"])
+    return render_template("shared_score.html", snap=snapshot)
 
 
 @app.get("/leaderboard")
