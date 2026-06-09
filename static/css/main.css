@@ -728,3 +728,82 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
   box-shadow: 0 0 20px rgba(201,168,76,.35);
 }
 .rw-btn:hover { box-shadow: 0 0 32px rgba(201,168,76,.55); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MOBILE  (≤ 600px)
+══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+
+  /* Global */
+  .site-main { padding: 16px 14px; }
+  .header-inner { padding: 10px 14px; }
+  .wordmark-showing { font-size: 1.1rem; }
+
+  /* Lobby */
+  .lobby-stage { gap: 24px; }
+  .ticket-body { padding: 28px 20px; }
+  .lobby-headline { font-size: 2rem; }
+  .ticket-hole, .ticket-hole--right { display: none; }
+
+  /* Game layout — draft board collapses to a compact horizontal scroll strip */
+  .game-layout { gap: 16px; }
+  .draft-board { position: static; padding: 14px; }
+  .marquee-slots {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+  }
+  .slot-label { font-size: .6rem; padding: 4px 6px; }
+  .slot-icon  { font-size: .8rem; }
+  .slot-film  { flex-direction: column; gap: 4px; padding: 6px; }
+  .slot-poster { width: 28px; height: 42px; }
+  .slot-film-info strong { font-size: .7rem; }
+  .slot-film-year { display: none; }
+  .slot-empty-label { padding: 6px 4px; font-size: .65rem; }
+  .board-total { font-size: .78rem; }
+
+  /* Reel machine */
+  .reel-machine { padding: 24px 14px; }
+  .reel-title { font-size: 1.4rem; }
+  .reel { width: 110px; }
+  .reel-item { font-size: 1rem; }
+  .reels { gap: 10px; }
+  .btn-spin { padding: 14px 24px; font-size: 1rem; }
+
+  /* Progress track — shrink pips */
+  .progress-pip { width: 26px; height: 26px; font-size: .72rem; }
+  .progress-track { gap: 4px; }
+
+  /* Film pool — 2 columns on mobile */
+  .film-pool {
+    grid-template-columns: repeat(2, 1fr);
+    max-height: none;
+    gap: 10px;
+  }
+  .film-card-body { padding: 8px; }
+  .film-title { font-size: .85rem; }
+  .btn-select { padding: 10px; font-size: .85rem; margin: 0 8px 8px; }
+
+  /* Slot picker */
+  .picker-inner { padding: 24px 18px; }
+  .picker-title { font-size: 1.1rem; }
+  .picker-slot-btn { padding: 14px 12px; font-size: .9rem; }
+
+  /* Scorecard */
+  .score-hero { padding: 32px 16px 28px; }
+  .score-total { font-size: 2.4rem; }
+  .score-headline { font-size: 1.2rem; }
+  .scorecard-grid { grid-template-columns: 1fr; }
+
+  /* Leaderboard — hide date column, shrink */
+  .lb-date { display: none; }
+  .lb-table th, .lb-table td { padding: 10px 8px; }
+  .lb-table { font-size: .82rem; }
+
+  /* Toast */
+  .toast { left: 14px; right: 14px; bottom: 16px; max-width: none; }
+
+  /* Mode select */
+  .mode-select-title { font-size: 2rem; }
+  .mode-card-inner { padding: 24px 20px; }
+}
