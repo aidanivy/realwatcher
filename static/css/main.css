@@ -583,6 +583,46 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
 /* Score actions */
 .score-actions { text-align: center; padding-bottom: 40px; }
 
+/* ── Leaderboard ─────────────────────────────────────────────────────────────── */
+.leaderboard { padding: 40px 20px 60px; }
+.leaderboard-stage { max-width: 860px; margin: 0 auto; }
+.leaderboard-header { text-align: center; margin-bottom: 32px; }
+.leaderboard-eyebrow {
+  font-size: .72rem; letter-spacing: .4em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: 6px;
+}
+.leaderboard-title {
+  font-family: var(--ff-display); font-size: 2.4rem; font-weight: 900;
+  color: var(--white);
+}
+.lb-table {
+  width: 100%; border-collapse: collapse; font-size: .92rem;
+}
+.lb-table th {
+  text-align: left; padding: 10px 14px;
+  background: var(--ink-lt); color: var(--smoke);
+  font-size: .68rem; letter-spacing: .14em; text-transform: uppercase;
+  border-bottom: 1px solid var(--card-border);
+}
+.lb-table td { padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,.04); }
+.lb-row:hover td { background: rgba(255,255,255,.02); }
+.lb-top td { background: rgba(201,168,76,.06); }
+.lb-rank { color: var(--smoke); font-size: .85rem; width: 40px; }
+.lb-top .lb-rank { color: var(--gold); font-weight: 700; }
+.lb-player { color: var(--white); font-family: var(--ff-display); font-weight: 600; }
+.lb-grade {
+  font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+}
+.lb-grade.grade-perfect     { color: var(--gold); }
+.lb-grade.grade-outstanding { color: var(--gold-dk); }
+.lb-grade.grade-great       { color: var(--success); }
+.lb-grade.grade-solid       { color: var(--cream-dk); }
+.lb-grade.grade-mixed       { color: var(--smoke); }
+.lb-grade.grade-flop        { color: var(--danger); }
+.lb-score { color: var(--gold-lt); font-family: var(--ff-display); font-weight: 700; }
+.lb-date  { color: var(--smoke); font-size: .8rem; }
+.lb-empty { text-align: center; padding: 60px 0; color: var(--smoke); font-style: italic; }
+
 /* ── Mode badges (shared across nav, lobby, score) ──────────────────────────── */
 .badge-classic, .badge-rw,
 .lobby-mode-badge, .nav-mode-badge,

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard — Box Office Draft{% endblock %}
+
+{% block nav %}
+<a href="/" class="btn-ghost" style="font-size:.85rem">← Play</a>
+{% endblock %}
+
+{% block content %}
+<section class="leaderboard">
+  <div class="leaderboard-stage">
+
+    <div class="leaderboard-header">
+      <p class="leaderboard-eyebrow">All Time</p>
+      <h1 class="leaderboard-title">Top Marquees</h1>
+    </div>
+
+    {% if entries %}
+    <table class="lb-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Player</th>
+          <th>Mode</th>
+          <th>Grade</th>
+          <th>Score</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr class="lb-row {% if loop.index == 1 %}lb-top{% endif %}">
+          <td class="lb-rank">{{ loop.index }}</td>
+          <td class="lb-player">{{ e.player }}</td>
+          <td class="lb-mode">
+            <span class="{% if e.mode == 'realwatcher' %}badge-rw{% else %}badge-classic{% endif %}">
+              {% if e.mode == 'realwatcher' %}<span class="rw-hash">#</span>RealWatcher{% else %}Classic{% endif %}
+            </span>
+          </td>
+          <td class="lb-grade grade-{{ e.grade | lower }}">{{ e.grade }}</td>
+          <td class="lb-score">{{ e.final_score | dollars }}</td>
+          <td class="lb-date">{{ e.played_at[:10] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="lb-empty">No scores yet — be the first to play.</p>
+    {% endif %}
+
+  </div>
+</section>
+{% endblock %}

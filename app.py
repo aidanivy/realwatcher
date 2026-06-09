@@ -15,7 +15,7 @@ Routes:
 import os
 import random
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import (
     Flask, render_template, request, session,
     redirect, url_for, jsonify, g
@@ -66,6 +66,29 @@ def _check_db():
         print('\n  Database error: ' + str(e) + '\n')
 
 _check_db()
+
+
+def _ensure_scores_table():
+    if not os.path.exists(DB_PATH):
+        return
+    try:
+        con = sqlite3.connect(DB_PATH)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS scores (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                player      TEXT    NOT NULL,
+                mode        TEXT    NOT NULL,
+                final_score INTEGER NOT NULL,
+                grade       TEXT    NOT NULL,
+                played_at   TEXT    NOT NULL
+            )
+        """)
+        con.commit()
+        con.close()
+    except Exception as e:
+        print(f"  Could not create scores table: {e}")
+
+_ensure_scores_table()
 
 
 def _build_valid_combos() -> set:
@@ -153,7 +176,7 @@ def fresh_state(player_name: str, mode: str = "realwatcher") -> dict:
         },
         "drafted_ids":  [],             # tmdb IDs already drafted
         "history":      [],             # log of past rounds
-        "started_at":   datetime.utcnow().isoformat(),
+        "started_at":   datetime.now(timezone.utc).isoformat(),
     }
 
 def state() -> dict:
@@ -479,7 +502,33 @@ def score():
     if not s:
         return redirect(url_for("lobby"))
     result = compute_score(s)
+    if not s.get("score_saved") and s.get("phase") == "done":
+        try:
+            db = get_db()
+            db.execute(
+                "INSERT INTO scores (player, mode, final_score, grade, played_at) VALUES (?,?,?,?,?)",
+                (s["player"], s.get("mode", "realwatcher"),
+                 result["final_score"], result["tier"]["grade"],
+                 datetime.now(timezone.utc).isoformat())
+            )
+            db.commit()
+        except Exception:
+            pass
+        s["score_saved"] = True
+        save_state(s)
     return render_template("score.html", s=s, result=result, slots=MARQUEE_SLOTS, scoring=SCORING)
+
+
+@app.get("/leaderboard")
+def leaderboard():
+    rows = query("""
+        SELECT player, mode, final_score, grade, played_at
+        FROM scores
+        ORDER BY final_score DESC
+        LIMIT 50
+    """)
+    entries = [dict(r) for r in rows]
+    return render_template("leaderboard.html", entries=entries)
 
 
 @app.post("/game/restart")
