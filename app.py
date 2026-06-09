@@ -87,7 +87,7 @@ def _ensure_scores_table():
                 result_json TEXT
             )
         """)
-        for col, defn in [("share_token", "TEXT UNIQUE"), ("result_json", "TEXT")]:
+        for col, defn in [("share_token", "TEXT"), ("result_json", "TEXT")]:
             try:
                 con.execute(f"ALTER TABLE scores ADD COLUMN {col} {defn}")
             except Exception:
@@ -605,8 +605,8 @@ def score():
                  token, json.dumps(snapshot))
             )
             db.commit()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  Score save error: {e}")
         s["score_saved"] = True
         s["share_token"] = token
         save_state(s)
