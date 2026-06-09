@@ -348,7 +348,33 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
 .phase-draft { animation: fadeIn .3s ease; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
-.draft-header { margin-bottom: 20px; text-align: center; }
+.draft-header { margin-bottom: 20px; }
+.draft-header-top {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.respin-row {
+  display: flex; justify-content: flex-end;
+  margin-bottom: 12px; padding: 0 4px;
+}
+.btn-respin {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; border: 1px solid var(--burgundy-lt);
+  color: var(--cream-dk); font-family: var(--ff-serif); font-size: .85rem;
+  padding: 6px 14px; border-radius: 20px; cursor: pointer;
+  transition: border-color .2s, color .2s, background .2s;
+  white-space: nowrap;
+}
+.btn-respin:hover:not(:disabled) {
+  border-color: var(--gold); color: var(--gold);
+  background: rgba(201,168,76,.08);
+}
+.btn-respin:disabled { opacity: .4; cursor: not-allowed; }
+.btn-respin.respin-spent { opacity: .35; }
+.respin-badge {
+  background: var(--burgundy); color: var(--gold);
+  font-size: .7rem; font-weight: 700; padding: 1px 6px; border-radius: 10px;
+}
 .spin-result {
   display: inline-flex; align-items: center; gap: 12px;
   background: var(--card-bg); border: 1px solid var(--gold-dk);
@@ -759,7 +785,7 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
   .draft-board { position: static; padding: 14px; }
   .marquee-slots {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 4px;
   }
   .slot-label { font-size: .6rem; padding: 4px 6px; }
@@ -770,6 +796,9 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
   .slot-film-year { display: none; }
   .slot-empty-label { padding: 6px 4px; font-size: .65rem; }
   .board-total { font-size: .78rem; }
+
+  /* Respin */
+  .btn-respin { padding: 10px 16px; font-size: .9rem; }
 
   /* Reel machine */
   .reel-machine { padding: 24px 14px; }

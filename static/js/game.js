@@ -1,9 +1,10 @@
 /* game.js — slot machine spin, film selection, draft API calls */
 
 // ── State ────────────────────────────────────────────────────────────────────
-let selectedFilm   = null;
-let currentPool    = [];
+let selectedFilm     = null;
+let currentPool      = [];
 let currentOpenSlots = [];
+let drafting         = false;
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 const phaseSpin  = document.getElementById('phase-spin');
@@ -76,6 +77,62 @@ function animateReel(strip, items, finalIdx, duration = 1800) {
   });
 }
 
+// ── Respin button ────────────────────────────────────────────────────────────
+const btnRespin = document.getElementById('btn-respin');
+if (btnRespin) {
+  btnRespin.addEventListener('click', async () => {
+    btnRespin.disabled = true;
+    btnRespin.innerHTML = '<span>Spinning…</span>';
+
+    try {
+      const res  = await fetch('/game/respin', { method: 'POST' });
+      const data = await res.json();
+
+      if (data.error) {
+        toast(data.error, 'error');
+        btnRespin.disabled = false;
+        btnRespin.innerHTML = '🎲 Respin <span class="respin-badge">1×</span>';
+        return;
+      }
+
+      // Show spin phase so the animation is visible
+      phaseDraft.style.display = 'none';
+      phaseSpin.style.display  = '';
+
+      const eraIdx    = ERA_LIST.indexOf(data.era);
+      const studioIdx = STUDIO_LIST.indexOf(STUDIO_DISPLAY[data.studio] ?? data.studio);
+
+      await Promise.all([
+        animateReel(stripEra,    ERA_LIST,    eraIdx    >= 0 ? eraIdx    : 0),
+        animateReel(stripStudio, STUDIO_LIST, studioIdx >= 0 ? studioIdx : 0),
+      ]);
+
+      // Switch back to draft with new pool
+      phaseSpin.style.display  = 'none';
+      phaseDraft.style.display = '';
+
+      currentPool      = data.pool;
+      currentOpenSlots = data.open_slots;
+
+      spinResult.innerHTML = `
+        <span class="result-era">${data.era}</span>
+        <span class="result-sep">×</span>
+        <span class="result-studio">${data.studio}</span>
+      `;
+
+      renderPool(data.pool);
+      btnRespin.disabled = true;
+      btnRespin.classList.add('respin-spent');
+      btnRespin.innerHTML = '🎲 Respin <span class="respin-badge">Used</span>';
+
+    } catch (err) {
+      toast('Network error — please try again.', 'error');
+      btnRespin.disabled = false;
+      btnRespin.innerHTML = '🎲 Respin <span class="respin-badge">1×</span>';
+    }
+  });
+}
+
 // ── Spin button ───────────────────────────────────────────────────────────────
 if (btnSpin) {
   btnSpin.addEventListener('click', async () => {
@@ -119,6 +176,11 @@ if (btnSpin) {
       // Switch phase
       phaseSpin.style.display  = 'none';
       phaseDraft.style.display = '';
+
+      // Enable respin now that a spin has happened
+      if (btnRespin && !btnRespin.classList.contains('respin-spent')) {
+        btnRespin.disabled = false;
+      }
 
     } catch (err) {
       toast('Network error — please try again.', 'error');
@@ -217,6 +279,8 @@ if (slotPicker) {
 
 // ── Draft API call ────────────────────────────────────────────────────────────
 async function draftFilm(filmId, slotNumber) {
+  if (drafting) return;
+  drafting = true;
   slotPicker.style.display = 'none';
 
   try {
@@ -229,6 +293,7 @@ async function draftFilm(filmId, slotNumber) {
 
     if (data.error) {
       toast(data.error, 'error');
+      drafting = false;
       return;
     }
 
@@ -237,11 +302,11 @@ async function draftFilm(filmId, slotNumber) {
       return;
     }
 
-    // Reload the page to show updated marquee + fresh spin phase
     window.location.reload();
 
   } catch (err) {
     toast('Network error — please try again.', 'error');
+    drafting = false;
   }
 }
 

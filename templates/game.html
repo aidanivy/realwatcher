@@ -55,6 +55,17 @@
       {% endfor %}
     </div>
 
+    <!-- Respin button — persistent across phases -->
+    <div class="respin-row">
+      <button class="btn-respin {% if s.respin_used %}respin-spent{% endif %}"
+              id="btn-respin"
+              {% if s.respin_used or s.phase == 'spin' %}disabled{% endif %}
+              title="One free respin per game">
+        🎲 Respin
+        <span class="respin-badge">{% if s.respin_used %}Used{% else %}1×{% endif %}</span>
+      </button>
+    </div>
+
     <!-- Phase: SPIN -->
     <div class="phase-spin" id="phase-spin" {% if s.phase != 'spin' %}style="display:none"{% endif %}>
       <div class="reel-machine">

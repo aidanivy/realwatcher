@@ -122,18 +122,16 @@ VALID_COMBOS = _build_valid_combos()
 
 # ── Slot / game config (must match load_movies_to_db.py) ──────────────────────
 MARQUEE_SLOTS = [
-    {"slot_number": 1,  "genre": "Action/Thriller", "label": "Action / Thriller I",  "icon": "🎬"},
-    {"slot_number": 2,  "genre": "Action/Thriller", "label": "Action / Thriller II", "icon": "💥"},
-    {"slot_number": 3,  "genre": "Horror",           "label": "Horror",               "icon": "👻"},
-    {"slot_number": 4,  "genre": "Comedy",            "label": "Comedy",               "icon": "😂"},
-    {"slot_number": 5,  "genre": "Drama",             "label": "Drama",                "icon": "🎭"},
-    {"slot_number": 6,  "genre": "Romance",           "label": "Romance",              "icon": "💕"},
-    {"slot_number": 7,  "genre": "Animated",          "label": "Animated",             "icon": "✨"},
-    {"slot_number": 8,  "genre": "Oscar Nominated",   "label": "Oscar Nominated",      "icon": "🏆"},
-    {"slot_number": 9,  "genre": "Blockbuster",       "label": "Blockbuster",          "icon": "💰"},
-    {"slot_number": 10, "genre": None,                "label": "Wildcard",             "icon": "🃏"},
+    {"slot_number": 1, "genre": "Action/Thriller", "label": "Action / Thriller", "icon": "🎬"},
+    {"slot_number": 2, "genre": "Horror",           "label": "Horror",            "icon": "👻"},
+    {"slot_number": 3, "genre": "Comedy",           "label": "Comedy",            "icon": "😂"},
+    {"slot_number": 4, "genre": "Drama",            "label": "Drama",             "icon": "🎭"},
+    {"slot_number": 5, "genre": "Romance",          "label": "Romance",           "icon": "💕"},
+    {"slot_number": 6, "genre": "Animated",         "label": "Animated",          "icon": "✨"},
+    {"slot_number": 7, "genre": "Oscar Nominated",  "label": "Oscar Nominated",   "icon": "🏆"},
+    {"slot_number": 8, "genre": None,               "label": "Wildcard",          "icon": "🃏"},
 ]
-TOTAL_ROUNDS = 10  # one round per slot — player fills all 10
+TOTAL_ROUNDS = 8  # one round per slot — player fills all 8
 ERAS    = ["1970s", "1980s", "1990s", "2000s", "2010s", "2020s"]
 STUDIOS = ["Disney", "Warner Brothers", "Universal", "Paramount",
            "Sony/Columbia", "20th Century Fox", "MGM/UA", "Independent"]
@@ -185,6 +183,7 @@ def fresh_state(player_name: str, mode: str = "realwatcher") -> dict:
         },
         "drafted_ids":  [],             # tmdb IDs already drafted
         "history":      [],             # log of past rounds
+        "respin_used":  False,          # one free respin per game
         "started_at":   datetime.now(timezone.utc).isoformat(),
     }
 
@@ -420,14 +419,69 @@ def game_spin():
 
     rows = query(sql, params)
     pool = [film_row_to_dict(r, keep_gross=keep_gross) for r in rows]
+    pool = [f for f in pool if eligible_slots_for_film(s, f)]
 
-    # Debug: log the spin result to terminal
-    print(f"  Spin: {era} x {studio} -> {len(pool)} films found")
+    print(f"  Spin: {era} x {studio} -> {len(pool)} eligible films")
 
     s["spin"]  = {"era": era, "studio": studio}
     s["pool"]  = pool
     s["phase"] = "draft"
     save_state(s)
+
+    return jsonify({
+        "era":    era,
+        "studio": studio,
+        "pool":   pool,
+        "open_slots": [
+            {"slot_number": sl["slot_number"], "label": sl["label"],
+             "genre": sl["genre"], "icon": sl["icon"]}
+            for sl in open_slots(s)
+        ],
+    })
+
+
+@app.post("/game/respin")
+def game_respin():
+    s = state()
+    if not s or s["phase"] != "draft":
+        return jsonify({"error": "Not in draft phase"}), 400
+    if s.get("respin_used"):
+        return jsonify({"error": "Respin already used"}), 400
+
+    mode       = s.get("mode", "realwatcher")
+    keep_gross = mode == "classic"
+    order_by   = "m.gross_m DESC" if mode == "classic" else "m.title ASC"
+    already    = s["drafted_ids"]
+
+    valid      = spinnable_combos(s)
+    current    = (s["spin"]["era"], s["spin"]["studio"])
+    options    = [c for c in valid if c != current] or valid
+    era, studio = random.choice(options)
+
+    not_in_clause = ""
+    if already:
+        placeholders  = ",".join("?" * len(already))
+        not_in_clause = f"AND m.id NOT IN ({placeholders})"
+
+    sql = f"""
+        SELECT DISTINCT
+            m.id, m.title, m.year, m.era, m.studio,
+            m.gross_m, m.poster_url, m.tmdb_url, m.overview, m.genre_str
+        FROM movies m
+        WHERE m.era = ? AND m.studio = ?
+          {not_in_clause}
+        ORDER BY {order_by}
+        LIMIT 20
+    """
+    pool = [film_row_to_dict(r, keep_gross=keep_gross) for r in query(sql, [era, studio] + already)]
+    pool = [f for f in pool if eligible_slots_for_film(s, f)]
+
+    s["spin"]        = {"era": era, "studio": studio}
+    s["pool"]        = pool
+    s["respin_used"] = True
+    save_state(s)
+
+    print(f"  Respin: {era} x {studio} -> {len(pool)} eligible films")
 
     return jsonify({
         "era":    era,
