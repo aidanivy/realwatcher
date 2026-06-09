@@ -186,7 +186,6 @@ function openSlotPicker(film) {
       <button class="picker-slot-btn ${eligible ? '' : 'disabled'}"
               data-slot="${slot.slot_number}"
               ${eligible ? '' : 'disabled'}>
-        <span>${slot.icon || '🎬'}</span>
         <span>${escHtml(slot.label)}</span>
         ${eligible ? '' : '<span style="margin-left:auto;font-size:.72rem;opacity:.6">Not eligible</span>'}
       </button>
