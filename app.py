@@ -148,7 +148,7 @@ STUDIOS = ["Disney", "Warner Brothers", "Universal", "Paramount",
 SCORING = {
     "tiers": [
         {"min": 9000, "grade": "PERFECT",     "headline": "THE GOLDEN AGE OF HOLLYWOOD"},
-        {"min": 7000, "grade": "OUTSTANDING", "headline": "DIAMOND HANDS"},
+        {"min": 7000, "grade": "OUTSTANDING", "headline": "IMPECCABLE TASTE"},
         {"min": 5000, "grade": "GREAT",       "headline": "BOX OFFICE GOLD"},
         {"min": 3000, "grade": "SOLID",       "headline": "RESPECTABLE RUN"},
         {"min":    0, "grade": "FLOP",        "headline": "STRAIGHT TO NETFLIX"},
@@ -512,6 +512,10 @@ def game_spin():
         return jsonify({"error": "Not in spin phase"}), 400
 
     valid = spinnable_combos(s)
+    last  = s.get("spin")
+    if last:
+        filtered = [c for c in valid if c != (last["era"], last["studio"])]
+        valid    = filtered if filtered else valid
     era, studio = random.choice(valid)
 
     mode       = s.get("mode", "realwatcher")
