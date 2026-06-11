@@ -59,6 +59,23 @@
         </dl>
       </div>
 
+      <div class="scoring-section scoring-section--inflation">
+        <h3 class="scoring-section-title">Era Inflation Adjustment</h3>
+        <p class="scoring-inflation-note">WW Gross and budget for older eras are scaled up to account for inflation and better scoring representation for well-performing classic films.</p>
+        <div class="scoring-table-wrap"><table class="scoring-table">
+          <thead><tr><th>Era</th><th>Multiplier</th></tr></thead>
+          <tbody>
+            {% for era in ["70s", "80s", "90s", "00s", "10s", "20s"] %}
+            {% set mult = scoring.inflation_mult.get(era, 1) %}
+            <tr {% if mult > 1 %}class="scoring-highlight"{% endif %}>
+              <td>{{ era }}</td>
+              <td>{{ mult }}×</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table></div>
+      </div>
+
       <div class="scoring-section">
         <h3 class="scoring-section-title">Per-Slot Bonuses</h3>
         <div class="scoring-table-wrap"><table class="scoring-table">

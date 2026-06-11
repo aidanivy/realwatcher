@@ -61,7 +61,7 @@
           {% endif %}
           <span class="score-slot-wae">{{ entry.slot_score | wae }}</span>
           {% if entry.gross_m %}
-          <span class="score-slot-gross">{{ entry.gross_m | dollars }} WW gross</span>
+          <span class="score-slot-gross">{{ entry.gross_m | dollars }} {% if entry.inflation_mult > 1 %}adj WW gross{% else %}WW gross{% endif %}</span>
           {% endif %}
         </div>
       </div>

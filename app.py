@@ -149,11 +149,12 @@ SCORING = {
     "commercial_weights": (0.80, 0.30), # (gross, profitability)
     "prestige_weights":   (0.45, 0.40, 0.25),  # (critic_score, oscar_noms, oscar_wins)
     "final_weights":      (0.75, 0.35), # (commercial, prestige)
+    "inflation_mult": {"70s": 5, "80s": 3, "90s": 2},  # flat CPI adj for scoring only
     "tiers": [
-        {"min": 8000, "grade": "PERFECT",     "headline": "THE GOLDEN AGE OF HOLLYWOOD"},
-        {"min": 6000, "grade": "OUTSTANDING", "headline": "IMPECCABLE TASTE"},
-        {"min": 4000, "grade": "GREAT",       "headline": "BOX OFFICE GOLD"},
-        {"min": 2000, "grade": "SOLID",       "headline": "RESPECTABLE RUN"},
+        {"min": 10000, "grade": "PERFECT",     "headline": "THE GOLDEN AGE OF HOLLYWOOD"},
+        {"min": 7500, "grade": "OUTSTANDING", "headline": "IMPECCABLE TASTE"},
+        {"min": 5000, "grade": "GREAT",       "headline": "BOX OFFICE GOLD"},
+        {"min": 3000, "grade": "SOLID",       "headline": "RESPECTABLE RUN"},
         {"min":    0, "grade": "FLOP",        "headline": "STRAIGHT TO NETFLIX"},
     ],
     "slot_rules": [
@@ -290,10 +291,12 @@ _PRIVATE_FIELDS = {"gross_m", "budget_m", "profit_m", "oscar_noms", "oscar_wins"
 def film_row_to_dict(row, keep_gross=False) -> dict:
     """Convert a sqlite3.Row to a client-safe dict. gross_m kept for Classic mode."""
     d = dict(row)
+    era = d.get("era", "")  # capture before era is stripped
     strip = _PRIVATE_FIELDS - ({"gross_m"} if keep_gross else set())
     for f in strip:
         d.pop(f, None)
     d["genre_tags"] = [t for t in (d.get("genre_str") or "").split("|") if t]
+    d["inflation_mult"] = SCORING["inflation_mult"].get(era, 1)
     return d
 
 
@@ -378,8 +381,10 @@ def compute_slot_score(film_data: dict, slot_obj: dict) -> float:
     Score is floored at 0 (a flop cannot subtract from your total).
     All bonus values and multipliers are driven by SCORING["slot_rules"].
     """
-    gross_m      = float(film_data.get("gross_m")      or 0)
-    budget_m     = float(film_data.get("budget_m")     or 0)
+    era          = film_data.get("era", "")
+    inf_mult     = SCORING["inflation_mult"].get(era, 1.0)
+    gross_m      = float(film_data.get("gross_m")      or 0) * inf_mult
+    budget_m     = float(film_data.get("budget_m")     or 0) * inf_mult
     oscar_noms   = int(film_data.get("oscar_noms")     or 0)
     oscar_wins   = int(film_data.get("oscar_wins")     or 0)
     vote_average = float(film_data.get("vote_average") or 0)
@@ -451,10 +456,11 @@ def compute_score(s: dict) -> dict:
         slot_score = float(slot_scores.get(str(sl["slot_number"]), 0.0))
 
         if film_stub:
-            full       = film_full(film_stub["id"])
-            oscar_wins = int(full.get("oscar_wins") or 0)
-            gross_m    = full.get("gross_m")
-            bp_won     = bool(full.get("best_picture_won"))
+            full         = film_full(film_stub["id"])
+            oscar_wins   = int(full.get("oscar_wins") or 0)
+            gross_m      = full.get("gross_m")
+            bp_won       = bool(full.get("best_picture_won"))
+            inf_mult     = SCORING["inflation_mult"].get(full.get("era", ""), 1)
             total_wae += slot_score
             if top_wae is None or slot_score > top_wae:
                 top_wae     = slot_score
@@ -464,6 +470,7 @@ def compute_score(s: dict) -> dict:
             oscar_wins = 0
             gross_m    = None
             bp_won     = False
+            inf_mult   = 1
 
         slots_detail.append({
             "slot":       sl,
@@ -472,6 +479,7 @@ def compute_score(s: dict) -> dict:
             "gross_m":    gross_m,
             "bp_won":     bp_won,
             "slot_score": round(slot_score, 1),
+            "inflation_mult": inf_mult,
         })
 
     final_score = round(total_wae, 1)

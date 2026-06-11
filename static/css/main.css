@@ -153,6 +153,15 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
 
 .scoring-section { margin-bottom: 28px; }
 .scoring-section:last-child { margin-bottom: 0; }
+.scoring-section--inflation {
+  background: rgba(201,168,76,.07);
+  border: 1px solid rgba(201,168,76,.25);
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+.scoring-inflation-note {
+  font-size: .82rem; color: var(--cream-dk); margin-bottom: 12px; line-height: 1.5;
+}
 .scoring-section-title {
   font-family: var(--ff-heading); font-size: 1rem; font-weight: 700;
   color: var(--cream); letter-spacing: .08em; text-transform: uppercase;

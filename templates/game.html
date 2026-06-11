@@ -125,7 +125,7 @@
             </div>
             {% if film.gross_m %}
             <div class="film-financials">
-              <span class="gross">{{ film.gross_m | dollars }} worldwide</span>
+              <span class="gross">{{ film.gross_m | dollars }} {% if film.inflation_mult > 1 %}adj WW gross{% else %}worldwide{% endif %}</span>
             </div>
             {% endif %}
           </div>
