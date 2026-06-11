@@ -72,6 +72,12 @@
     {% endfor %}
   </div>
 
+  <div class="score-play-again">
+    <form action="/game/restart" method="POST">
+      <button type="submit" class="btn-primary">Play Again</button>
+    </form>
+  </div>
+
   {% if s.history %}
   <div class="history-section">
     <h2 class="history-title">Round History</h2>
@@ -101,10 +107,7 @@
       Share Your Marquee
     </button>
     {% endif %}
-    <form action="/game/restart" method="POST" style="margin-top:12px">
-      <button type="submit" class="btn-primary">Play Again</button>
-    </form>
-    <a href="/leaderboard" class="btn-ghost" style="margin-top:12px;display:inline-block">View Leaderboard</a>
+    <a href="/leaderboard#{{ s.mode }}" class="btn-ghost" style="margin-top:12px;display:inline-block">View Leaderboard</a>
   </div>
 
 </section>

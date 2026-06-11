@@ -692,6 +692,7 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
 .history-table tr.passed td { color: var(--smoke); font-style: italic; }
 
 /* Score actions */
+.score-play-again { text-align: center; margin: 40px 0; }
 .score-actions { text-align: center; padding-bottom: 40px; }
 .btn-share {
   display: inline-flex; align-items: center; gap: 8px;
