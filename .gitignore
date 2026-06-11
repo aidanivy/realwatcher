@@ -9,9 +9,6 @@ venv/
 # Flask session files
 flask_session/
 
-# Database (do not commit — upload separately or use a hosted DB)
-*.db
-*.sqlite3
 movies_raw.json
 posters/
 

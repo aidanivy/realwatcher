@@ -19,20 +19,10 @@
 
     <div class="score-total-wrap">
       <span class="score-label">Final Score</span>
-      <span class="score-total">{{ result.final_score | dollars }}</span>
+      <span class="score-total">{{ result.final_score | wae }}</span>
     </div>
 
-    <div class="score-breakdown">
-      <span class="breakdown-item">Profit: {{ result.total_profit | dollars }}</span>
-      {% if result.oscar_bonus > 0 %}
-      <span class="breakdown-sep">+</span>
-      <span class="breakdown-item">
-        Oscar winner in nominated slot +{{ result.oscar_bonus | dollars }} bonus
-      </span>
-      {% endif %}
-    </div>
-
-    <p class="score-filled">{{ result.filled }} / 8 slots filled</p>
+    <p class="score-filled">{{ result.filled }} / 7 slots filled</p>
 
     {% if s.mode == 'realwatcher' %}
     <div class="score-mode-badge score-mode-rw">
@@ -61,10 +51,17 @@
           <strong class="score-film-title">{{ entry.film.title }}</strong>
           <span class="score-film-year">{{ entry.film.year }}</span>
           {% if entry.film.id == result.top_film_id %}
-          <span class="score-top-earner">⭐ Highest Earner</span>
+          <span class="score-top-earner">⭐ Top Slot</span>
+          {% endif %}
+          {% if entry.bp_won %}
+          <span class="score-bp-winner">🏆 Best Picture</span>
           {% endif %}
           {% if entry.oscar_wins %}
-          <span class="score-wins">🏆 {{ entry.oscar_wins }} win{{ 's' if entry.oscar_wins != 1 }}</span>
+          <span class="score-wins">{{ entry.oscar_wins }} Oscar win{{ 's' if entry.oscar_wins != 1 }}</span>
+          {% endif %}
+          <span class="score-slot-wae">{{ entry.slot_score | wae }}</span>
+          {% if entry.gross_m %}
+          <span class="score-slot-gross">{{ entry.gross_m | dollars }} WW gross</span>
           {% endif %}
         </div>
       </div>

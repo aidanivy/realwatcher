@@ -41,7 +41,7 @@
       {% endfor %}
     </div>
     <div class="board-total" id="running-total">
-      Slots filled: <strong>{{ s.marquee.values() | select | list | length }} / 8</strong>
+      Slots filled: <strong>{{ s.marquee.values() | select | list | length }} / 7</strong>
     </div>
   </aside>
 
@@ -125,7 +125,7 @@
             </div>
             {% if film.gross_m %}
             <div class="film-financials">
-              <span class="gross">${{ '{:,.0f}'.format(film.gross_m) }}M worldwide</span>
+              <span class="gross">{{ film.gross_m | dollars }} worldwide</span>
             </div>
             {% endif %}
           </div>
@@ -149,7 +149,7 @@
     <div class="phase-done" id="phase-done" {% if s.phase != 'done' %}style="display:none"{% endif %}>
       <div class="done-card">
         <h2>Marquee Complete!</h2>
-        <p>All 8 rounds finished. See how your lineup stacks up.</p>
+        <p>All 7 rounds finished. See how your lineup stacks up.</p>
         <a href="/game/score" class="btn-primary">View Final Score →</a>
       </div>
     </div>

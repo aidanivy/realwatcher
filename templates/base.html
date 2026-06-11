@@ -19,13 +19,13 @@
     </div>
     <div class="header-inner">
       <a href="/" class="wordmark">
-        <span class="wordmark-now">NOW</span>
-        <span class="wordmark-showing">SHOWING</span>
-        <span class="wordmark-draft">DRAFT</span>
+        <span class="wordmark-showing">NOW SHOWING</span>
+        {% if request.endpoint == 'game' %}<span class="wordmark-draft">DRAFT</span>{% endif %}
       </a>
       {% if self.nav() %}
       <nav class="header-nav">{% block nav %}{% endblock %}</nav>
       {% endif %}
+      <button class="scoring-info-btn" id="btn-scoring-info" aria-label="How scoring works">?</button>
     </div>
     <div class="marquee-bulbs bottom-bulbs">
       {% for i in range(20) %}<span class="bulb {% if i % 3 == 1 %}on{% endif %}"></span>{% endfor %}
@@ -40,7 +40,57 @@
     <p>Powered by <a href="https://www.themoviedb.org" target="_blank">TMDB</a> &amp; <a href="https://www.omdbapi.com" target="_blank">OMDb</a></p>
   </footer>
 
+  <!-- Scoring info modal -->
+  <div class="scoring-modal" id="scoring-modal" aria-hidden="true">
+    <div class="scoring-modal-inner">
+      <button class="scoring-modal-close" id="btn-close-scoring" aria-label="Close">✕</button>
+      <h2 class="scoring-modal-title">How Scoring Works</h2>
+      <p class="scoring-modal-sub">Every slot earns <strong>WAE</strong> — Watcher Adjusted Earnings</p>
+
+      <div class="scoring-section">
+        <h3 class="scoring-section-title">Base Formula</h3>
+        <dl class="scoring-dl">
+          <dt>Commercial</dt>
+          <dd>Weighted mix of box office gross and profitability (gross minus 2.5× budget)</dd>
+          <dt>Prestige</dt>
+          <dd>Critic score + Oscar nominations + Oscar wins</dd>
+          <dt>Slot Score</dt>
+          <dd>65% Commercial + 35% Prestige — then slot bonus &amp; multiplier applied</dd>
+        </dl>
+      </div>
+
+      <div class="scoring-section">
+        <h3 class="scoring-section-title">Per-Slot Bonuses</h3>
+        <div class="scoring-table-wrap"><table class="scoring-table">
+          <thead><tr><th>Slot</th><th>Mult.</th><th>Bonus</th></tr></thead>
+          <tbody>
+            <tr><td>Action</td><td>1×</td><td>+10M / +20M / +30M for profit/budget &gt; 3× / 5× / 10×</td></tr>
+            <tr><td>Horror / Thriller</td><td>1×</td><td>+10M / +20M / +30M for gross/budget &gt; 3× / 5× / 10× · +5M if critic 70+</td></tr>
+            <tr><td>Romance / Comedy</td><td>1×</td><td>+10M / +20M / +30M for gross/budget &gt; 3× / 5× / 10× · +5M if critic 70+</td></tr>
+            <tr><td>Drama</td><td>1×</td><td>+5M critic 80–89 · +10M critic 90+</td></tr>
+            <tr><td>Wildcard</td><td>1×</td><td>—</td></tr>
+            <tr class="scoring-highlight"><td>Oscar Nominated</td><td>1.2×</td><td>+5M per nom · +10M per win · +10M BP nom · +15M BP win (max +60M)</td></tr>
+            <tr class="scoring-highlight"><td>Blockbuster</td><td>1.5×</td><td>+10M per $100M above threshold · +20M if &gt; $1B gross (max +150M)</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script>
+    (function () {
+      const btn   = document.getElementById('btn-scoring-info');
+      const modal = document.getElementById('scoring-modal');
+      const close = document.getElementById('btn-close-scoring');
+      function open()  { modal.setAttribute('aria-hidden', 'false'); modal.classList.add('is-open'); }
+      function shut()  { modal.setAttribute('aria-hidden', 'true');  modal.classList.remove('is-open'); }
+      btn.addEventListener('click', open);
+      close.addEventListener('click', shut);
+      modal.addEventListener('click', e => { if (e.target === modal) shut(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') shut(); });
+    })();
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

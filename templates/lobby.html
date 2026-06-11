@@ -48,13 +48,13 @@
       <ol class="rules-list">
         <li><strong>Spin</strong> to land on an Era &amp; Studio combination</li>
         <li><strong>Choose</strong> a film from that pool to place on your marquee</li>
-        <li><strong>Fill</strong> all 8 genre slots across 8 rounds</li>
-        <li><strong>Score</strong> is the total profit of your lineup, plus an Oscar bonus if your nominee took home the hardware</li>
+        <li><strong>Fill</strong> all 7 genre slots across 7 rounds</li>
+        <li><strong>Score</strong> in WAE — a mix of box office gross, profitability, critic ratings, and Oscar hardware</li>
       </ol>
       <div class="slot-preview">
-        {% set icons = ["🎬","👻","😂","🎭","💕","✨","🏆","🃏"] %}
-        {% set labels = ["Action/Thriller","Horror","Comedy","Drama","Romance","Animated","Oscar Nominated","Wildcard"] %}
-        {% for i in range(8) %}
+        {% set icons  = ["🎬","👻","🎭","💕","💰","🏆","🃏"] %}
+        {% set labels = ["Action","Horror / Thriller","Drama","Romance / Comedy","Blockbuster","Oscar Nominated","Wildcard"] %}
+        {% for i in range(7) %}
         <div class="slot-chip">
           <span class="chip-icon">{{ icons[i] }}</span>
           <span class="chip-label">{{ labels[i] }}</span>

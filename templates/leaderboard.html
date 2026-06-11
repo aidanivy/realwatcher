@@ -14,16 +14,16 @@
       <h1 class="leaderboard-title">Top Marquees</h1>
     </div>
 
+    {% macro lb_table(entries) %}
     {% if entries %}
     <table class="lb-table">
       <thead>
         <tr>
           <th>#</th>
           <th>Player</th>
-          <th>Mode</th>
           <th>Grade</th>
           <th>Score</th>
-          <th>Date</th>
+          <th class="lb-date">Date</th>
         </tr>
       </thead>
       <tbody>
@@ -31,21 +31,35 @@
         <tr class="lb-row {% if loop.index == 1 %}lb-top{% endif %}">
           <td class="lb-rank">{{ loop.index }}</td>
           <td class="lb-player">{{ e.player }}</td>
-          <td class="lb-mode">
-            <span class="{% if e.mode == 'realwatcher' %}badge-rw{% else %}badge-classic{% endif %}">
-              {% if e.mode == 'realwatcher' %}<span class="rw-hash">#</span>RealWatcher{% else %}Classic{% endif %}
-            </span>
-          </td>
           <td class="lb-grade grade-{{ e.grade | lower }}">{{ e.grade }}</td>
-          <td class="lb-score">{{ e.final_score | dollars }}</td>
+          <td class="lb-score">{{ e.final_score | wae }}</td>
           <td class="lb-date">{{ e.played_at[:10] }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <p class="lb-empty">No scores yet — be the first to play.</p>
+    <p class="lb-empty">No scores yet.</p>
     {% endif %}
+    {% endmacro %}
+
+    <div class="lb-sections">
+
+      <div class="lb-section">
+        <div class="lb-section-header">
+          <span class="lb-section-badge badge-rw"><span class="rw-hash">#</span>RealWatcher</span>
+        </div>
+        {{ lb_table(rw_entries) }}
+      </div>
+
+      <div class="lb-section">
+        <div class="lb-section-header">
+          <span class="lb-section-badge badge-classic">Classic</span>
+        </div>
+        {{ lb_table(classic_entries) }}
+      </div>
+
+    </div>
 
   </div>
 </section>
