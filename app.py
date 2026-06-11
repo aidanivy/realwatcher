@@ -495,10 +495,9 @@ def compute_score(s: dict) -> dict:
 # ── Template helpers ─────────────────────────────────────────────────────────
 @app.template_filter("dollars")
 def dollars_filter(value):
-    """Format a dollar value in $M, switching to $B if >= 1000."""
     if value is None:
         return "—"
-    if abs(value) >= 1000:
+    if abs(value) >= 999.5:  # rounds to $1,000M → show as $1.0B instead
         return f"${value / 1000:.1f}B"
     return f"${value:,.0f}M"
 
