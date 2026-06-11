@@ -51,11 +51,11 @@
         <h3 class="scoring-section-title">Base Formula</h3>
         <dl class="scoring-dl">
           <dt>Commercial</dt>
-          <dd>Weighted mix of box office gross and profitability (gross minus 2.5× budget)</dd>
+          <dd>Weighted mix of box office gross and profitability (gross minus {{ scoring.profit_budget_mult }}× budget)</dd>
           <dt>Prestige</dt>
           <dd>Critic score + Oscar nominations + Oscar wins</dd>
           <dt>Slot Score</dt>
-          <dd>65% Commercial + 35% Prestige — then slot bonus &amp; multiplier applied</dd>
+          <dd>{{ (scoring.final_weights[0] * 100)|int }}% Commercial + {{ (scoring.final_weights[1] * 100)|int }}% Prestige — then slot bonus &amp; multiplier applied</dd>
         </dl>
       </div>
 
@@ -64,13 +64,13 @@
         <div class="scoring-table-wrap"><table class="scoring-table">
           <thead><tr><th>Slot</th><th>Mult.</th><th>Bonus</th></tr></thead>
           <tbody>
-            <tr><td>Action</td><td>1×</td><td>+10M / +20M / +30M for profit/budget &gt; 3× / 5× / 10×</td></tr>
-            <tr><td>Horror / Thriller</td><td>1×</td><td>+10M / +20M / +30M for gross/budget &gt; 3× / 5× / 10× · +5M if critic 70+</td></tr>
-            <tr><td>Romance / Comedy</td><td>1×</td><td>+10M / +20M / +30M for gross/budget &gt; 3× / 5× / 10× · +5M if critic 70+</td></tr>
-            <tr><td>Drama</td><td>1×</td><td>+5M critic 80–89 · +10M critic 90+</td></tr>
-            <tr><td>Wildcard</td><td>1×</td><td>—</td></tr>
-            <tr class="scoring-highlight"><td>Oscar Nominated</td><td>1.2×</td><td>+5M per nom · +10M per win · +10M BP nom · +15M BP win (max +60M)</td></tr>
-            <tr class="scoring-highlight"><td>Blockbuster</td><td>1.5×</td><td>+10M per $100M above threshold · +20M if &gt; $1B gross (max +150M)</td></tr>
+            {% for rule in scoring.slot_rules %}
+            <tr {% if rule.mult > 1 %}class="scoring-highlight"{% endif %}>
+              <td>{{ rule.label }}</td>
+              <td>{{ rule.mult }}×</td>
+              <td>{{ rule.desc }}</td>
+            </tr>
+            {% endfor %}
           </tbody>
         </table></div>
       </div>

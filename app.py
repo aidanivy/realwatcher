@@ -136,24 +136,105 @@ ERAS    = ["1970s", "1980s", "1990s", "2000s", "2010s", "2020s"]
 STUDIOS = ["Disney", "Warner Brothers", "Universal", "Paramount",
            "Sony/Columbia", "20th Century Fox", "MGM/UA", "Independent"]
 
-# ── Scoring config — adjust thresholds here only ─────────────────────────────
+# ── Scoring config — adjust thresholds and slot rules here only ──────────────
 # WAE = Watcher Adjusted Earnings (unit for all scores)
 # Formula per slot:
-#   profitability   = gross_m − (budget_m × 2.5)
-#   commercial      = 0.70×gross_m + 0.30×profitability
-#   prestige        = 0.45×(vote_average×10) + 0.30×oscar_noms + 0.25×oscar_wins
-#   pre_bonus       = 0.65×commercial + 0.35×prestige
-#   slot_score      = max((pre_bonus + bonus) × multiplier, 0)
-# Per-slot bonuses and multipliers are in compute_slot_score() below.
+#   profitability = gross_m - (budget_m * profit_budget_mult)
+#   commercial    = commercial_weights[0]*gross_m + commercial_weights[1]*profitability
+#   prestige      = prestige_weights[0]*critic + prestige_weights[1]*noms + prestige_weights[2]*wins
+#   pre_bonus     = final_weights[0]*commercial + final_weights[1]*prestige
+#   slot_score    = max((pre_bonus + bonus) * multiplier, 0)
 SCORING = {
+    "profit_budget_mult": 2,            # profitability = gross - (budget × this)
+    "commercial_weights": (0.80, 0.30), # (gross, profitability)
+    "prestige_weights":   (0.45, 0.40, 0.25),  # (critic_score, oscar_noms, oscar_wins)
+    "final_weights":      (0.75, 0.35), # (commercial, prestige)
     "tiers": [
-        {"min": 9000, "grade": "PERFECT",     "headline": "THE GOLDEN AGE OF HOLLYWOOD"},
-        {"min": 7000, "grade": "OUTSTANDING", "headline": "IMPECCABLE TASTE"},
-        {"min": 5000, "grade": "GREAT",       "headline": "BOX OFFICE GOLD"},
-        {"min": 3000, "grade": "SOLID",       "headline": "RESPECTABLE RUN"},
+        {"min": 8000, "grade": "PERFECT",     "headline": "THE GOLDEN AGE OF HOLLYWOOD"},
+        {"min": 6000, "grade": "OUTSTANDING", "headline": "IMPECCABLE TASTE"},
+        {"min": 4000, "grade": "GREAT",       "headline": "BOX OFFICE GOLD"},
+        {"min": 2000, "grade": "SOLID",       "headline": "RESPECTABLE RUN"},
         {"min":    0, "grade": "FLOP",        "headline": "STRAIGHT TO NETFLIX"},
     ],
+    "slot_rules": [
+        {
+            "genre": "Action",          "label": "Action",
+            "mult": 1.0,
+            "ratio_type":  "profit",
+            "ratio_tiers": [(3, 10), (5, 20), (10, 30)],
+            "critic_thresh": 70, "critic_amt": 5,
+        },
+        {
+            "genre": "Horror/Thriller", "label": "Horror / Thriller",
+            "mult": 1.0,
+            "ratio_type":  "gross",
+            "ratio_tiers": [(3, 10), (5, 20), (10, 30)],
+            "critic_thresh": 70, "critic_amt": 5,
+        },
+        {
+            "genre": "Romance/Comedy",  "label": "Romance / Comedy",
+            "mult": 1.0,
+            "ratio_type":  "gross",
+            "ratio_tiers": [(3, 10), (5, 20), (10, 30)],
+            "critic_thresh": 70, "critic_amt": 5,
+        },
+        {
+            "genre": "Drama",           "label": "Drama",
+            "mult": 1.0,
+            "critic_tiers": [(80, 5), (90, 10)],
+        },
+        {
+            "genre": None,              "label": "Wildcard",
+            "mult": 1.0,
+        },
+        {
+            "genre": "Oscar Nominated", "label": "Oscar Nominated",
+            "mult": 2.0,
+            "per_nom": 5, "per_win": 10, "bp_nom_amt": 10, "bp_win_amt": 15,
+        },
+        {
+            "genre": "Blockbuster",     "label": "Blockbuster",
+            "mult": 2.5,
+            "per_100m": 10, "over_1b": 20, "block_cap": 150,
+        },
+    ],
 }
+
+
+def _slot_rule_desc(r: dict) -> str:
+    """Build a human-readable bonus description from a slot rule dict."""
+    parts = []
+    if "ratio_tiers" in r:
+        rtype      = "profit" if r.get("ratio_type") == "profit" else "gross"
+        tier_str   = " / ".join(f"+{b}M" for _, b in r["ratio_tiers"])
+        thresh_str = " / ".join(f"{t}×" for t, _ in r["ratio_tiers"])
+        parts.append(f"{tier_str} for {rtype}/budget > {thresh_str}")
+    if "critic_thresh" in r:
+        parts.append(f"+{r['critic_amt']}M if critic {r['critic_thresh']}+")
+    if "critic_tiers" in r:
+        tiers = r["critic_tiers"]
+        for i, (thresh, amt) in enumerate(tiers):
+            if i + 1 < len(tiers):
+                parts.append(f"+{amt}M critic {thresh}–{tiers[i+1][0]-1}")
+            else:
+                parts.append(f"+{amt}M critic {thresh}+")
+    if "per_nom" in r:
+        cap_str = f" (max +{r['oscar_cap']}M)" if "oscar_cap" in r else ""
+        parts.append(
+            f"+{r['per_nom']}M per nom · +{r['per_win']}M per win"
+            f" · +{r['bp_nom_amt']}M BP nom · +{r['bp_win_amt']}M BP win{cap_str}"
+        )
+    if "per_100m" in r:
+        parts.append(
+            f"+{r['per_100m']}M per $100M above threshold"
+            f" · +{r['over_1b']}M if > $1B gross"
+            f" (max +{r['block_cap']}M)"
+        )
+    return " · ".join(parts) if parts else "—"
+
+
+for _r in SCORING["slot_rules"]:
+    _r["desc"] = _slot_rule_desc(_r)
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
 def get_db():
@@ -286,25 +367,16 @@ def spinnable_combos(s: dict) -> list:
 
 # ── Scoring ───────────────────────────────────────────────────────────────────
 def compute_profitability(gross_m: float, budget_m: float) -> float:
-    """WAE profitability: gross − (budget × 2.5). Can be negative for flops."""
     if not gross_m or not budget_m:
         return 0.0
-    return gross_m - (budget_m * 2.5)
+    return gross_m - (budget_m * SCORING["profit_budget_mult"])
 
 
 def compute_slot_score(film_data: dict, slot_obj: dict) -> float:
     """
     Compute the WAE score for one drafted film in one slot.
     Score is floored at 0 (a flop cannot subtract from your total).
-
-    Multipliers and bonuses by slot:
-      Action        1.0x  | +10/+20/+30 if (gross-budget)/budget > 3x/5x/10x
-      Horror/Thrllr 1.0x  | +10/+20/+30 if gross/budget > 3x/5x/10x; +5 if critic >= 70
-      Romance/Comedy 1.0x | same as Horror/Thriller
-      Drama         1.0x  | +5 if critic 80-89; +10 if critic 90+
-      Wildcard      1.0x  | no bonuses
-      Oscar Nom     1.2x  | +5/nom +10/win +10/bp-nom +15/bp-win (cap 60)
-      Blockbuster   1.5x  | +10 per $100M above $100M threshold; +20 if > $1B (cap 150)
+    All bonus values and multipliers are driven by SCORING["slot_rules"].
     """
     gross_m      = float(film_data.get("gross_m")      or 0)
     budget_m     = float(film_data.get("budget_m")     or 0)
@@ -315,61 +387,49 @@ def compute_slot_score(film_data: dict, slot_obj: dict) -> float:
     bp_won       = bool(film_data.get("best_picture_won"))
 
     profitability = compute_profitability(gross_m, budget_m)
-    commercial    = 0.70 * gross_m + 0.30 * profitability
-    critic_score  = vote_average * 10   # 0-10 → 0-100
-    prestige      = 0.45 * critic_score + 0.30 * oscar_noms + 0.25 * oscar_wins
-    pre_bonus     = 0.65 * commercial + 0.35 * prestige
+    cw = SCORING["commercial_weights"]
+    pw = SCORING["prestige_weights"]
+    fw = SCORING["final_weights"]
+    commercial   = cw[0] * gross_m + cw[1] * profitability
+    critic_score = vote_average * 10  # 0–10 → 0–100
+    prestige     = pw[0] * critic_score + pw[1] * oscar_noms + pw[2] * oscar_wins
+    pre_bonus    = fw[0] * commercial  + fw[1] * prestige
 
-    genre      = slot_obj.get("genre")
+    genre = slot_obj.get("genre")
+    rule  = next((r for r in SCORING["slot_rules"] if r["genre"] == genre), {})
+
     bonus      = 0.0
-    multiplier = 1.0
+    multiplier = rule.get("mult", 1.0)
 
-    if genre == "Action":
-        if budget_m > 0:
-            ratio = (gross_m - budget_m) / budget_m   # simple profit / budget
-            if ratio > 10:
-                bonus = 30
-            elif ratio > 5:
-                bonus = 20
-            elif ratio > 3:
-                bonus = 10
+    if "ratio_tiers" in rule and budget_m > 0:
+        ratio = ((gross_m - budget_m) / budget_m
+                 if rule.get("ratio_type") == "profit"
+                 else gross_m / budget_m)
+        for thresh, amt in reversed(rule["ratio_tiers"]):
+            if ratio > thresh:
+                bonus = float(amt)
+                break
 
-    elif genre in ("Horror/Thriller", "Romance/Comedy"):
-        if budget_m > 0:
-            ratio = gross_m / budget_m
-            if ratio > 10:
-                bonus = 30
-            elif ratio > 5:
-                bonus = 20
-            elif ratio > 3:
-                bonus = 10
-        if critic_score >= 70:
-            bonus += 5
+    if "critic_thresh" in rule and critic_score >= rule["critic_thresh"]:
+        bonus += rule["critic_amt"]
 
-    elif genre == "Drama":
-        if critic_score >= 90:
-            bonus = 10
-        elif critic_score >= 80:
-            bonus = 5
+    if "critic_tiers" in rule:
+        for thresh, amt in reversed(rule["critic_tiers"]):
+            if critic_score >= thresh:
+                bonus = float(amt)
+                break
 
-    elif genre == "Oscar Nominated":
-        multiplier = 1.2
-        raw_bonus  = (oscar_noms * 5) + (oscar_wins * 10)
-        if bp_nom:
-            raw_bonus += 10
-        if bp_won:
-            raw_bonus += 15
-        bonus = min(raw_bonus, 60)
+    if "per_nom" in rule:
+        raw = oscar_noms * rule["per_nom"] + oscar_wins * rule["per_win"]
+        if bp_nom: raw += rule["bp_nom_amt"]
+        if bp_won: raw += rule["bp_win_amt"]
+        bonus = float(min(raw, rule["oscar_cap"]) if "oscar_cap" in rule else raw)
 
-    elif genre == "Blockbuster":
-        multiplier = 1.5
-        if gross_m >= 100:
-            bonus = int((gross_m - 100) / 100) * 10
+    if "per_100m" in rule and gross_m >= 100:
+        b = int((gross_m - 100) / 100) * rule["per_100m"]
         if gross_m > 1000:
-            bonus += 20
-        bonus = min(bonus, 150)
-
-    # genre is None → Wildcard, no bonus
+            b += rule["over_1b"]
+        bonus = min(float(b), rule["block_cap"])
 
     return max(round((pre_bonus + bonus) * multiplier, 1), 0.0)
 
@@ -456,6 +516,10 @@ def wae_filter(value):
     else:
         num = f"${v:,.0f}M"
     return Markup(f'{num}<span class="wae-unit">WAE</span>')
+
+@app.context_processor
+def inject_scoring():
+    return {"scoring": SCORING}
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  ROUTES
