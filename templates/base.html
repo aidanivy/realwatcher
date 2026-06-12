@@ -85,7 +85,7 @@
             <tr {% if rule.mult > 1 %}class="scoring-highlight"{% endif %}>
               <td>{{ rule.label }}</td>
               <td>{{ rule.mult }}×</td>
-              <td>{{ rule.desc }}</td>
+              <td>{{ rule.desc }}{% if rule.rw_note %}<br><em class="scoring-rw-note">{{ rule.rw_note }}</em>{% endif %}</td>
             </tr>
             {% endfor %}
           </tbody>

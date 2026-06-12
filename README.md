@@ -88,7 +88,7 @@ Displayed figures always show the original box office numbers.
 
 ```
 profitability  = gross − (budget × 2)
-commercial     = 0.80 × gross + 0.30 × profitability
+commercial     = 0.80 × gross + 0.40 × profitability
 prestige       = 0.45 × critic_score + 0.40 × oscar_noms + 0.25 × oscar_wins
 pre_bonus      = 0.75 × commercial + 0.35 × prestige
 slot_score     = max((pre_bonus + bonus) × multiplier, 0)
@@ -98,23 +98,24 @@ slot_score     = max((pre_bonus + bonus) × multiplier, 0)
 
 | Slot              | Mult | Bonus |
 |-------------------|------|-------|
-| Action            | 1×   | +10/+20/+30M for profit/budget > 3×/5×/10× · +5M if critic 70+ |
-| Horror / Thriller | 1×   | +10/+20/+30M for gross/budget > 3×/5×/10× · +5M if critic 70+ |
-| Romance / Comedy  | 1×   | +10/+20/+30M for gross/budget > 3×/5×/10× · +5M if critic 70+ |
-| Drama             | 1×   | +5M critic 80–89 · +10M critic 90+ |
-| Wildcard          | 1×   | — |
+| Action            | 1×   | +10/+20/+30M for profitability/budget > 3×/5×/10× · +5M if critic 60+ · +10M if critic 75+ |
+| Horror / Thriller | 1×   | +10/+20/+30M for profitability/budget > 3×/5×/10× · +5M if critic 65+ |
+| Romance / Comedy  | 1×   | +10/+20/+30M for profitability/budget > 3×/5×/10× · +5M if critic 65+ |
+| Drama             | 1×   | +5M critic 70–79 · +10M critic 80–89 · +15M critic 90+ · +2M/nom · +3M/win |
+| Wildcard          | 1.5× | +2M if critic 65+ · +0.5M/nom · +1M/win · +1M if Animated |
 | Oscar Nominated   | 2×   | +5M/nom · +10M/win · +10M BP nom · +15M BP win (uncapped) |
-| Blockbuster       | 2.5× | +10M per $100M above threshold · +20M if > $1B gross (max +150M) |
+| Blockbuster       | 2.5× | +10M per $100M above threshold · +10M if > $1B gross (max +150M) |
 
 ### Score Tiers
 
-| Min Score | Grade       | Headline                        |
-|-----------|-------------|---------------------------------|
-| 10,000+   | PERFECT     | THE GOLDEN AGE OF HOLLYWOOD     |
-| 7,500+    | OUTSTANDING | IMPECCABLE TASTE                |
-| 5,000+    | GREAT       | BOX OFFICE GOLD                 |
-| 3,000+    | SOLID       | RESPECTABLE RUN                 |
-| 0+        | FLOP        | STRAIGHT TO NETFLIX             |
+| Min Score | Grade       | Headline           |
+|-----------|-------------|--------------------|
+| 12,000+   | PERFECT     | "CINEMA"           |
+| 10,000+   | OUTSTANDING | IMPECCABLE TASTE   |
+| 7,000+    | GREAT       | BOX OFFICE GOLD    |
+| 5,000+    | SOLID       | RESPECTABLE RUN    |
+| 3,000+    | DECENT      | I MEAN, SURE       |
+| 0+        | FLOP        | BOMB               |
 
 ---
 

@@ -120,7 +120,9 @@
             <p class="film-meta">{{ film.year }} · {{ film.studio }}</p>
             <div class="film-tags">
               {% for tag in film.genre_tags %}
+              {% if not (s.mode == 'realwatcher' and tag == 'Oscar Nominated') %}
               <span class="tag">{{ tag }}</span>
+              {% endif %}
               {% endfor %}
             </div>
             {% if film.gross_m %}

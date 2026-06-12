@@ -2,7 +2,7 @@
 {% block title %}Your Scorecard — Box Office Draft{% endblock %}
 
 {% block nav %}
-<span class="nav-player">🎟 {{ s.player }}</span>
+{% if s.player %}<span class="nav-player">🎟 {{ s.player }}</span>{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -10,7 +10,7 @@
 
   <div class="score-hero">
     <p class="score-eyebrow">Final Marquee</p>
-    <h1 class="score-name">{{ s.player }}</h1>
+    <h1 class="score-name">{{ s.player or "Your Marquee" }}</h1>
 
     <div class="score-grade-wrap">
       <span class="score-grade grade-{{ result.tier.grade | lower }}">{{ result.tier.grade }}</span>
@@ -20,6 +20,21 @@
     <div class="score-total-wrap">
       <span class="score-label">Final Score</span>
       <span class="score-total">{{ result.final_score | wae }}</span>
+    </div>
+
+    <div class="score-marquee-stats">
+      <div class="marquee-stat">
+        <span class="marquee-stat-val">{{ result.total_adj_gross | dollars }}</span>
+        <span class="marquee-stat-label">Total Adj. WW Gross</span>
+      </div>
+      <div class="marquee-stat">
+        <span class="marquee-stat-val">{{ result.total_noms }}</span>
+        <span class="marquee-stat-label">Oscar Noms</span>
+      </div>
+      <div class="marquee-stat">
+        <span class="marquee-stat-val">{{ result.total_wins }}</span>
+        <span class="marquee-stat-label">Oscar Wins</span>
+      </div>
     </div>
 
     <p class="score-filled">{{ result.filled }} / 7 slots filled</p>
@@ -72,6 +87,34 @@
     {% endfor %}
   </div>
 
+  <div class="score-save-wrap">
+    {% if not s.score_saved %}
+    <form action="/game/save" method="POST" class="score-save-form">
+      <div class="score-save-row">
+        <input
+          type="text"
+          name="player_name"
+          placeholder="Your name…"
+          maxlength="32"
+          autocomplete="off"
+          class="score-name-input"
+          required
+        >
+        <button type="submit" class="btn-primary">Save Your Marquee</button>
+      </div>
+    </form>
+    {% else %}
+    <div class="score-saved-row">
+      <span class="score-saved-label">✓ Saved as <strong>{{ s.player }}</strong></span>
+      {% if s.share_token %}
+      <button class="btn-share" id="btn-share" data-url="{{ request.host_url }}s/{{ s.share_token }}">
+        Share Your Marquee
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
   <div class="score-play-again">
     <form action="/game/restart" method="POST">
       <button type="submit" class="btn-primary">Play Again</button>
@@ -101,14 +144,6 @@
   </div>
   {% endif %}
 
-  <div class="score-actions">
-    {% if s.share_token %}
-    <button class="btn-share" id="btn-share" data-url="{{ request.host_url }}s/{{ s.share_token }}">
-      Share Your Marquee
-    </button>
-    {% endif %}
-    <a href="/leaderboard#{{ s.mode }}" class="btn-ghost" style="margin-top:12px;display:inline-block">View Leaderboard</a>
-  </div>
 
 </section>
 {% endblock %}

@@ -159,6 +159,10 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
   border-radius: 6px;
   padding: 14px 16px;
 }
+.scoring-rw-note {
+  font-size: .75rem; color: var(--smoke); font-style: italic;
+  display: block; margin-top: 3px;
+}
 .scoring-inflation-note {
   font-size: .82rem; color: var(--cream-dk); margin-bottom: 12px; line-height: 1.5;
 }
@@ -644,6 +648,21 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
   gap: 6px; font-size: .88rem; color: var(--smoke); margin-bottom: 8px;
 }
 .breakdown-sep { color: var(--gold); font-weight: bold; }
+.score-marquee-stats {
+  display: flex; gap: 28px; justify-content: center;
+  margin: 16px 0 4px; flex-wrap: wrap;
+}
+.marquee-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.marquee-stat-val {
+  font-family: var(--ff-display); font-size: 1.15rem;
+  color: var(--cream); letter-spacing: .02em;
+}
+.marquee-stat-label {
+  font-size: .72rem; color: var(--smoke); text-transform: uppercase;
+  letter-spacing: .08em;
+}
 .score-filled { font-size: .85rem; color: var(--smoke); margin-top: 8px; }
 
 .scorecard-grid {
@@ -700,9 +719,27 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
 .history-table tr:hover td { background: rgba(255,255,255,.02); }
 .history-table tr.passed td { color: var(--smoke); font-style: italic; }
 
-/* Score actions */
-.score-play-again { text-align: center; margin: 40px 0; }
-.score-actions { text-align: center; padding-bottom: 40px; }
+/* Score save / actions */
+.score-save-wrap { max-width: 520px; margin: 40px auto 0; padding: 0 16px; }
+.score-save-form { width: 100%; }
+.score-save-row {
+  display: flex; gap: 10px; align-items: stretch;
+}
+.score-name-input {
+  flex: 1; background: rgba(255,255,255,.06); border: 1px solid rgba(201,168,76,.35);
+  border-radius: var(--radius); color: var(--cream); font-family: var(--ff-body);
+  font-size: 1rem; padding: 12px 16px; outline: none;
+  transition: border-color .2s;
+}
+.score-name-input::placeholder { color: var(--smoke); }
+.score-name-input:focus { border-color: var(--gold); }
+.score-saved-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 16px; flex-wrap: wrap;
+}
+.score-saved-label { color: var(--cream); font-size: .95rem; }
+.score-saved-label strong { color: var(--gold); }
+.score-play-again { text-align: center; margin: 20px 0 40px; }
 .btn-share {
   display: inline-flex; align-items: center; gap: 8px;
   background: transparent; border: 2px solid var(--gold);
@@ -761,6 +798,10 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
 .lb-score { color: var(--gold-lt); font-family: var(--ff-display); font-weight: 700; }
 .lb-date  { color: var(--smoke); font-size: .8rem; }
 .lb-empty { text-align: center; padding: 60px 0; color: var(--smoke); font-style: italic; }
+.lb-play-again { text-align: center; margin: 48px 0 8px; }
+
+/* Mode select rules section */
+.mode-select-rules { max-width: 640px; margin: 48px auto 0; }
 
 /* ── Mode badges (shared across nav, lobby, score) ──────────────────────────── */
 .badge-classic, .badge-rw,
@@ -888,10 +929,12 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
   .game-layout { gap: 16px; }
   .draft-board { position: static; padding: 14px; }
   .marquee-slots {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     gap: 4px;
   }
+  .marquee-slot { flex: 0 0 calc(25% - 3px); }
   .slot-label { font-size: .6rem; padding: 4px 6px; }
   .slot-icon  { font-size: .8rem; }
   .slot-film  { flex-direction: column; gap: 4px; padding: 6px; }

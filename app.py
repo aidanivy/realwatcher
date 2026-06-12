@@ -45,6 +45,14 @@ Session(app)
 _HERE = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("DB_PATH", os.path.join(_HERE, "moviegame.db"))
 
+# Seed persistent volume on first deploy (Railway: DB_PATH points to /data/moviegame.db)
+_SEED_DB = os.path.join(_HERE, "moviegame.db")
+if DB_PATH != _SEED_DB and not os.path.exists(DB_PATH) and os.path.exists(_SEED_DB):
+    import shutil
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    shutil.copy2(_SEED_DB, DB_PATH)
+    print(f"  Seeded DB: {_SEED_DB} -> {DB_PATH}")
+
 # -- Startup diagnostics -----------------------------------------------------
 def _check_db():
     if not os.path.exists(DB_PATH):
@@ -146,16 +154,17 @@ STUDIOS = ["Disney", "Warner Brothers", "Universal", "Paramount",
 #   slot_score    = max((pre_bonus + bonus) * multiplier, 0)
 SCORING = {
     "profit_budget_mult": 2,            # profitability = gross - (budget × this)
-    "commercial_weights": (0.80, 0.30), # (gross, profitability)
+    "commercial_weights": (0.80, 0.40), # (gross, profitability)
     "prestige_weights":   (0.45, 0.40, 0.25),  # (critic_score, oscar_noms, oscar_wins)
     "final_weights":      (0.75, 0.35), # (commercial, prestige)
     "inflation_mult": {"70s": 5, "80s": 3, "90s": 2},  # flat CPI adj for scoring only
     "tiers": [
-        {"min": 10000, "grade": "PERFECT",     "headline": "THE GOLDEN AGE OF HOLLYWOOD"},
-        {"min": 7500, "grade": "OUTSTANDING", "headline": "IMPECCABLE TASTE"},
-        {"min": 5000, "grade": "GREAT",       "headline": "BOX OFFICE GOLD"},
-        {"min": 3000, "grade": "SOLID",       "headline": "RESPECTABLE RUN"},
-        {"min":    0, "grade": "FLOP",        "headline": "STRAIGHT TO NETFLIX"},
+        {"min": 12000, "grade": "PERFECT",     "headline": "\"CINEMA\""},
+        {"min": 10000, "grade": "OUTSTANDING", "headline": "IMPECCABLE TASTE"},
+        {"min": 7000,  "grade": "GREAT",       "headline": "BOX OFFICE GOLD"},
+        {"min": 5000,  "grade": "SOLID",       "headline": "RESPECTABLE RUN"},
+        {"min": 3000,  "grade": "DECENT",      "headline": "I MEAN, SURE"},
+        {"min":    0,  "grade": "FLOP",        "headline": "BOMB"},
     ],
     "slot_rules": [
         {
@@ -163,40 +172,46 @@ SCORING = {
             "mult": 1.0,
             "ratio_type":  "profit",
             "ratio_tiers": [(3, 10), (5, 20), (10, 30)],
-            "critic_thresh": 70, "critic_amt": 5,
+            "critic_thresh": 60, "critic_amt": 5,
+            "critic_thresh2": 75, "critic_amt2": 10,
         },
         {
             "genre": "Horror/Thriller", "label": "Horror / Thriller",
             "mult": 1.0,
-            "ratio_type":  "gross",
+            "ratio_type":  "profit",
             "ratio_tiers": [(3, 10), (5, 20), (10, 30)],
-            "critic_thresh": 70, "critic_amt": 5,
+            "critic_thresh": 65, "critic_amt": 5,
         },
         {
             "genre": "Romance/Comedy",  "label": "Romance / Comedy",
             "mult": 1.0,
-            "ratio_type":  "gross",
+            "ratio_type":  "profit",
             "ratio_tiers": [(3, 10), (5, 20), (10, 30)],
-            "critic_thresh": 70, "critic_amt": 5,
+            "critic_thresh": 65, "critic_amt": 5,
         },
         {
             "genre": "Drama",           "label": "Drama",
             "mult": 1.0,
-            "critic_tiers": [(80, 5), (90, 10)],
+            "critic_tiers": [(70, 5), (80, 10), (90, 15)],
+            "nom_bonus": 2, "win_bonus": 3,
         },
         {
             "genre": None,              "label": "Wildcard",
-            "mult": 1.0,
+            "mult": 1.5,
+            "critic_thresh": 65, "critic_amt": 2,
+            "nom_bonus": 0.5, "win_bonus": 1.0,
+            "animated_bonus": 1,
         },
         {
             "genre": "Oscar Nominated", "label": "Oscar Nominated",
             "mult": 2.0,
             "per_nom": 5, "per_win": 10, "bp_nom_amt": 10, "bp_win_amt": 15,
+            "rw_note": "#RealWatcher: any film accepted — 2× and bonuses only apply if actually nominated (1× otherwise)",
         },
         {
             "genre": "Blockbuster",     "label": "Blockbuster",
             "mult": 2.5,
-            "per_100m": 10, "over_1b": 20, "block_cap": 150,
+            "per_100m": 10, "over_1b": 10, "block_cap": 150,
         },
     ],
 }
@@ -206,12 +221,14 @@ def _slot_rule_desc(r: dict) -> str:
     """Build a human-readable bonus description from a slot rule dict."""
     parts = []
     if "ratio_tiers" in r:
-        rtype      = "profit" if r.get("ratio_type") == "profit" else "gross"
+        rtype      = "profitability" if r.get("ratio_type") == "profit" else "gross"
         tier_str   = " / ".join(f"+{b}M" for _, b in r["ratio_tiers"])
         thresh_str = " / ".join(f"{t}×" for t, _ in r["ratio_tiers"])
         parts.append(f"{tier_str} for {rtype}/budget > {thresh_str}")
     if "critic_thresh" in r:
         parts.append(f"+{r['critic_amt']}M if critic {r['critic_thresh']}+")
+    if "critic_thresh2" in r:
+        parts.append(f"+{r['critic_amt2']}M if critic {r['critic_thresh2']}+")
     if "critic_tiers" in r:
         tiers = r["critic_tiers"]
         for i, (thresh, amt) in enumerate(tiers):
@@ -219,6 +236,10 @@ def _slot_rule_desc(r: dict) -> str:
                 parts.append(f"+{amt}M critic {thresh}–{tiers[i+1][0]-1}")
             else:
                 parts.append(f"+{amt}M critic {thresh}+")
+    if "nom_bonus" in r:
+        parts.append(f"+{r['nom_bonus']}M/nom · +{r['win_bonus']}M/win")
+    if "animated_bonus" in r:
+        parts.append(f"+{r['animated_bonus']}M if Animated")
     if "per_nom" in r:
         cap_str = f" (max +{r['oscar_cap']}M)" if "oscar_cap" in r else ""
         parts.append(
@@ -310,10 +331,12 @@ def film_full(film_id: int) -> dict:
     return d
 
 # ── Slot eligibility logic ────────────────────────────────────────────────────
-def slot_accepts(slot: dict, film: dict) -> bool:
+def slot_accepts(slot: dict, film: dict, mode: str = "") -> bool:
     """Return True if film can be placed in this slot."""
-    if slot["genre"] is None:          # Wildcard
+    if slot["genre"] is None:
         return True
+    if slot["genre"] == "Oscar Nominated" and mode == "realwatcher":
+        return True  # RealWatcher: Oscar slot accepts any film
     return slot["genre"] in film.get("genre_tags", [])
 
 def open_slots(s: dict) -> list[dict]:
@@ -325,21 +348,26 @@ def open_slots(s: dict) -> list[dict]:
 
 def eligible_slots_for_film(s: dict, film: dict) -> list[int]:
     """Slot numbers where this film could legally be placed."""
+    mode = s.get("mode", "")
     return [
         sl["slot_number"] for sl in open_slots(s)
-        if slot_accepts(sl, film)
+        if slot_accepts(sl, film, mode)
     ]
 
 def spinnable_combos(s: dict) -> list:
     """
     Return valid combos that have at least one film eligible for an open slot.
     If Wildcard is still open, any valid combo qualifies (Wildcard accepts anything).
+    In RealWatcher mode, Oscar slot also accepts any film, so same applies.
     Falls back to all VALID_COMBOS if the filtered set is empty.
     """
     open_genre_set = {sl["genre"] for sl in open_slots(s)}
+    mode = s.get("mode", "")
 
     if None in open_genre_set:          # Wildcard open — any combo works
         return list(VALID_COMBOS)
+    if mode == "realwatcher" and "Oscar Nominated" in open_genre_set:
+        return list(VALID_COMBOS)  # Oscar slot open in RealWatcher — any combo works
 
     genres = list(open_genre_set)
     already = s["drafted_ids"]
@@ -407,7 +435,7 @@ def compute_slot_score(film_data: dict, slot_obj: dict) -> float:
     multiplier = rule.get("mult", 1.0)
 
     if "ratio_tiers" in rule and budget_m > 0:
-        ratio = ((gross_m - budget_m) / budget_m
+        ratio = (compute_profitability(gross_m, budget_m) / budget_m
                  if rule.get("ratio_type") == "profit"
                  else gross_m / budget_m)
         for thresh, amt in reversed(rule["ratio_tiers"]):
@@ -418,17 +446,30 @@ def compute_slot_score(film_data: dict, slot_obj: dict) -> float:
     if "critic_thresh" in rule and critic_score >= rule["critic_thresh"]:
         bonus += rule["critic_amt"]
 
+    if "critic_thresh2" in rule and critic_score >= rule["critic_thresh2"]:
+        bonus += rule["critic_amt2"]
+
     if "critic_tiers" in rule:
         for thresh, amt in reversed(rule["critic_tiers"]):
             if critic_score >= thresh:
-                bonus = float(amt)
+                bonus += float(amt)
                 break
 
+    if "nom_bonus" in rule:
+        bonus += oscar_noms * rule["nom_bonus"] + oscar_wins * rule["win_bonus"]
+
+    if "animated_bonus" in rule:
+        if "Animated" in film_data.get("genre_tags", []):
+            bonus += rule["animated_bonus"]
+
     if "per_nom" in rule:
-        raw = oscar_noms * rule["per_nom"] + oscar_wins * rule["per_win"]
-        if bp_nom: raw += rule["bp_nom_amt"]
-        if bp_won: raw += rule["bp_win_amt"]
-        bonus = float(min(raw, rule["oscar_cap"]) if "oscar_cap" in rule else raw)
+        if oscar_noms == 0 and oscar_wins == 0 and not bp_nom and not bp_won:
+            multiplier = 1.0  # not actually nominated — no bonus, no multiplier
+        else:
+            raw = oscar_noms * rule["per_nom"] + oscar_wins * rule["per_win"]
+            if bp_nom: raw += rule["bp_nom_amt"]
+            if bp_won: raw += rule["bp_win_amt"]
+            bonus = float(min(raw, rule["oscar_cap"]) if "oscar_cap" in rule else raw)
 
     if "per_100m" in rule and gross_m >= 100:
         b = int((gross_m - 100) / 100) * rule["per_100m"]
@@ -444,12 +485,15 @@ def compute_score(s: dict) -> dict:
     Build the final scorecard from per-slot WAE scores stored in session.
     Re-fetches oscar_wins from DB for the display (never stored in session).
     """
-    slots_detail = []
-    total_wae    = 0.0
-    filled       = 0
-    top_wae      = None
-    top_film_id  = None
-    slot_scores  = s.get("slot_scores", {})
+    slots_detail    = []
+    total_wae       = 0.0
+    total_adj_gross = 0.0
+    total_noms      = 0
+    total_wins      = 0
+    filled          = 0
+    top_wae         = None
+    top_film_id     = None
+    slot_scores     = s.get("slot_scores", {})
 
     for sl in MARQUEE_SLOTS:
         film_stub  = s["marquee"].get(str(sl["slot_number"]))
@@ -458,10 +502,14 @@ def compute_score(s: dict) -> dict:
         if film_stub:
             full         = film_full(film_stub["id"])
             oscar_wins   = int(full.get("oscar_wins") or 0)
+            oscar_noms   = int(full.get("oscar_noms") or 0)
             gross_m      = full.get("gross_m")
             bp_won       = bool(full.get("best_picture_won"))
             inf_mult     = SCORING["inflation_mult"].get(full.get("era", ""), 1)
-            total_wae += slot_score
+            total_wae       += slot_score
+            total_adj_gross += float(gross_m or 0) * inf_mult
+            total_noms      += oscar_noms
+            total_wins      += oscar_wins
             if top_wae is None or slot_score > top_wae:
                 top_wae     = slot_score
                 top_film_id = film_stub["id"]
@@ -491,13 +539,16 @@ def compute_score(s: dict) -> dict:
             break
 
     return {
-        "total_profit": round(total_wae, 1),   # kept for template compatibility
-        "oscar_bonus":  0.0,                   # now folded into slot scores
-        "top_film_id":  top_film_id,
-        "final_score":  final_score,
-        "filled":       filled,
-        "slots":        slots_detail,
-        "tier":         tier,
+        "total_profit":    round(total_wae, 1),
+        "oscar_bonus":     0.0,
+        "top_film_id":     top_film_id,
+        "final_score":     final_score,
+        "filled":          filled,
+        "slots":           slots_detail,
+        "tier":            tier,
+        "total_adj_gross": round(total_adj_gross, 1),
+        "total_noms":      total_noms,
+        "total_wins":      total_wins,
     }
 
 # ── Template helpers ─────────────────────────────────────────────────────────
@@ -555,8 +606,8 @@ def lobby():
 
 @app.post("/game/new")
 def game_new():
-    player = request.form.get("player_name", "").strip() or "Player 1"
-    mode   = request.form.get("mode", "realwatcher")
+    player = request.form.get("player_name", "").strip()
+    mode   = request.form.get("mode", session.pop("pending_mode", "realwatcher"))
     save_state(fresh_state(player, mode))
     return redirect(url_for("game"))
 
@@ -565,7 +616,7 @@ def game_new():
 def game():
     s = state()
     if not s:
-        return redirect(url_for("lobby"))
+        return redirect(url_for("index"))
     if s["phase"] == "done":
         return redirect(url_for("score"))
     return render_template(
@@ -717,7 +768,7 @@ def game_draft():
         return jsonify({"error": "Film not in current pool"}), 400
 
     # Validate genre fit
-    if not slot_accepts(slot_obj, film):
+    if not slot_accepts(slot_obj, film, s.get("mode", "")):
         return jsonify({
             "error": f"'{film['title']}' doesn't qualify for the {slot_obj['label']} slot"
         }), 400
@@ -767,55 +818,71 @@ def game_draft():
 def score():
     s = state()
     if not s:
-        return redirect(url_for("lobby"))
+        return redirect(url_for("index"))
     result = compute_score(s)
-    if not s.get("score_saved") and s.get("phase") == "done":
-        token = secrets.token_urlsafe(8)
-        snapshot = {
-            "player":       s["player"],
-            "mode":         s.get("mode", "realwatcher"),
-            "grade":        result["tier"]["grade"],
-            "headline":     result["tier"]["headline"],
-            "final_score":  result["final_score"],
-            "total_profit": result["total_profit"],
-            "oscar_bonus":  0,
-            "filled":       result["filled"],
-            "top_film_id":  result["top_film_id"],
-            "slots": [
-                {
-                    "slot_number": e["slot"]["slot_number"],
-                    "label":       e["slot"]["label"],
-                    "icon":        e["slot"]["icon"],
-                    "slot_score":  e.get("slot_score", 0),
-                    "film": {
-                        "id":         e["film"]["id"],
-                        "title":      e["film"]["title"],
-                        "year":       e["film"]["year"],
-                        "poster_url": e["film"].get("poster_url"),
-                    } if e["film"] else None,
-                    "oscar_wins": e.get("oscar_wins", 0),
-                }
-                for e in result["slots"]
-            ],
-        }
-        try:
-            db = get_db()
-            db.execute(
-                """INSERT INTO scores
-                   (player, mode, final_score, grade, played_at, share_token, result_json)
-                   VALUES (?,?,?,?,?,?,?)""",
-                (s["player"], s.get("mode", "realwatcher"),
-                 result["final_score"], result["tier"]["grade"],
-                 datetime.now(timezone.utc).isoformat(),
-                 token, json.dumps(snapshot))
-            )
-            db.commit()
-        except Exception as e:
-            print(f"  Score save error: {e}")
-        s["score_saved"] = True
-        s["share_token"] = token
-        save_state(s)
     return render_template("score.html", s=s, result=result, slots=MARQUEE_SLOTS, scoring=SCORING)
+
+
+@app.post("/game/save")
+def game_save():
+    s = state()
+    if not s or s.get("phase") != "done":
+        return redirect(url_for("index"))
+    if s.get("score_saved"):
+        return redirect(url_for("score"))
+
+    player = request.form.get("player_name", "").strip()
+    if not player:
+        return redirect(url_for("score"))
+
+    result = compute_score(s)
+    token  = secrets.token_urlsafe(8)
+    snapshot = {
+        "player":       player,
+        "mode":         s.get("mode", "realwatcher"),
+        "grade":        result["tier"]["grade"],
+        "headline":     result["tier"]["headline"],
+        "final_score":  result["final_score"],
+        "total_profit": result["total_profit"],
+        "oscar_bonus":  0,
+        "filled":       result["filled"],
+        "top_film_id":  result["top_film_id"],
+        "slots": [
+            {
+                "slot_number": e["slot"]["slot_number"],
+                "label":       e["slot"]["label"],
+                "icon":        e["slot"]["icon"],
+                "slot_score":  e.get("slot_score", 0),
+                "film": {
+                    "id":         e["film"]["id"],
+                    "title":      e["film"]["title"],
+                    "year":       e["film"]["year"],
+                    "poster_url": e["film"].get("poster_url"),
+                } if e["film"] else None,
+                "oscar_wins": e.get("oscar_wins", 0),
+            }
+            for e in result["slots"]
+        ],
+    }
+    try:
+        db = get_db()
+        db.execute(
+            """INSERT INTO scores
+               (player, mode, final_score, grade, played_at, share_token, result_json)
+               VALUES (?,?,?,?,?,?,?)""",
+            (player, s.get("mode", "realwatcher"),
+             result["final_score"], result["tier"]["grade"],
+             datetime.now(timezone.utc).isoformat(),
+             token, json.dumps(snapshot))
+        )
+        db.commit()
+    except Exception as e:
+        print(f"  Score save error: {e}")
+    s["score_saved"] = True
+    s["share_token"] = token
+    s["player"]      = player
+    save_state(s)
+    return redirect(url_for("score"))
 
 
 @app.get("/s/<token>")
@@ -831,12 +898,12 @@ def shared_score(token):
 def leaderboard():
     rw = query("""
         SELECT player, final_score, grade, played_at
-        FROM scores WHERE mode = 'realwatcher'
+        FROM scores WHERE mode = 'realwatcher' AND player != ''
         ORDER BY final_score DESC LIMIT 25
     """)
     classic = query("""
         SELECT player, final_score, grade, played_at
-        FROM scores WHERE mode = 'classic'
+        FROM scores WHERE mode = 'classic' AND player != ''
         ORDER BY final_score DESC LIMIT 25
     """)
     return render_template("leaderboard.html",
