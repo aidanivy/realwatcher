@@ -5,6 +5,7 @@ let selectedFilm     = null;
 let currentPool      = [];
 let currentOpenSlots = [];
 let drafting         = false;
+const GAME_MODE      = document.querySelector('.game-layout')?.dataset.mode || '';
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 const phaseSpin  = document.getElementById('phase-spin');
@@ -206,7 +207,7 @@ function renderPool(pool) {
         <h3 class="film-title">${escHtml(film.title)}</h3>
         <p class="film-meta">${film.year} · ${escHtml(film.studio || '')}</p>
         <div class="film-tags">
-          ${(film.genre_tags || film.genre_str?.split('|') || []).map(t => `<span class="tag">${escHtml(t)}</span>`).join('')}
+          ${(film.genre_tags || film.genre_str?.split('|') || []).filter(t => !(GAME_MODE === 'realwatcher' && t === 'Oscar Nominated')).map(t => `<span class="tag">${escHtml(t)}</span>`).join('')}
         </div>
         ${film.gross_m != null ? `<div class="film-financials"><span class="gross">$${fmt(film.gross_m)}M worldwide</span></div>` : ''}
       </div>
@@ -243,7 +244,9 @@ function openSlotPicker(film) {
   const filmGenres = (film.genre_tags || film.genre_str?.split('|') || []);
 
   pickerSlots.innerHTML = currentOpenSlots.map(slot => {
-    const eligible = slot.genre === null || filmGenres.includes(slot.genre);
+    const eligible = slot.genre === null
+      || filmGenres.includes(slot.genre)
+      || (GAME_MODE === 'realwatcher' && slot.genre === 'Oscar Nominated');
     return `
       <button class="picker-slot-btn ${eligible ? '' : 'disabled'}"
               data-slot="${slot.slot_number}"

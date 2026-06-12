@@ -50,10 +50,12 @@
       <div class="scoring-section">
         <h3 class="scoring-section-title">Base Formula</h3>
         <dl class="scoring-dl">
+          <dt>Profitability</dt>
+          <dd>Gross − ({{ scoring.profit_budget_mult }}× Budget)</dd>
           <dt>Commercial</dt>
-          <dd>Weighted mix of box office gross and profitability (gross minus {{ scoring.profit_budget_mult }}× budget)</dd>
+          <dd>{{ (scoring.commercial_weights[0] * 100)|int }}% Gross + {{ (scoring.commercial_weights[1] * 100)|int }}% Profitability</dd>
           <dt>Prestige</dt>
-          <dd>Critic score + Oscar nominations + Oscar wins</dd>
+          <dd>{{ (scoring.prestige_weights[0] * 100)|int }}% Critic + {{ (scoring.prestige_weights[1] * 100)|int }}% Oscar Noms + {{ (scoring.prestige_weights[2] * 100)|int }}% Oscar Wins</dd>
           <dt>Slot Score</dt>
           <dd>{{ (scoring.final_weights[0] * 100)|int }}% Commercial + {{ (scoring.final_weights[1] * 100)|int }}% Prestige — then slot bonus &amp; multiplier applied</dd>
         </dl>

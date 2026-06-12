@@ -658,7 +658,7 @@ def game_spin():
         WHERE m.era = ? AND m.studio = ?
           {not_in_clause}
         ORDER BY {order_by}
-        LIMIT 20
+        LIMIT 30
     """
     params = [era, studio] + already
 
@@ -716,7 +716,7 @@ def game_respin():
         WHERE m.era = ? AND m.studio = ?
           {not_in_clause}
         ORDER BY {order_by}
-        LIMIT 20
+        LIMIT 30
     """
     pool = [film_row_to_dict(r, keep_gross=keep_gross) for r in query(sql, [era, studio] + already)]
     pool = [f for f in pool if eligible_slots_for_film(s, f)]
@@ -882,7 +882,8 @@ def game_save():
     s["share_token"] = token
     s["player"]      = player
     save_state(s)
-    return redirect(url_for("score"))
+    mode = s.get("mode", "realwatcher")
+    return redirect(url_for("leaderboard") + f"#{mode}")
 
 
 @app.get("/s/<token>")
