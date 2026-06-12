@@ -6,7 +6,7 @@
 
   <div class="score-hero">
     <p class="score-eyebrow">Final Marquee</p>
-    <h1 class="score-name">{{ snap.player }}</h1>
+    <h1 class="score-name">{{ snap.player or "Watcher" }}</h1>
 
     <div class="score-grade-wrap">
       <span class="score-grade grade-{{ snap.grade | lower }}">{{ snap.grade }}</span>
@@ -16,6 +16,21 @@
     <div class="score-total-wrap">
       <span class="score-label">Final Score</span>
       <span class="score-total">{{ snap.final_score | wae }}</span>
+    </div>
+
+    <div class="score-marquee-stats">
+      <div class="marquee-stat">
+        <span class="marquee-stat-val">{{ snap.total_adj_gross | dollars }}</span>
+        <span class="marquee-stat-label">Total Adj. WW Gross</span>
+      </div>
+      <div class="marquee-stat">
+        <span class="marquee-stat-val">{{ snap.total_noms }}</span>
+        <span class="marquee-stat-label">Oscar Noms</span>
+      </div>
+      <div class="marquee-stat">
+        <span class="marquee-stat-val">{{ snap.total_wins }}</span>
+        <span class="marquee-stat-label">Oscar Wins</span>
+      </div>
     </div>
 
     <p class="score-filled">{{ snap.filled }} / 7 slots filled</p>
@@ -45,11 +60,15 @@
           {% if entry.film.id == snap.top_film_id %}
           <span class="score-top-earner">⭐ Top Slot</span>
           {% endif %}
-          {% if entry.oscar_wins %}
-          <span class="score-wins">🏆 {{ entry.oscar_wins }} win{{ 's' if entry.oscar_wins != 1 }}</span>
+          {% if entry.bp_won %}
+          <span class="score-bp-winner">🏆 Best Picture</span>
           {% endif %}
-          {% if entry.slot_score %}
+          {% if entry.oscar_wins %}
+          <span class="score-wins">{{ entry.oscar_wins }} Oscar win{{ 's' if entry.oscar_wins != 1 }}</span>
+          {% endif %}
           <span class="score-slot-wae">{{ entry.slot_score | wae }}</span>
+          {% if entry.gross_m %}
+          <span class="score-slot-gross">{{ entry.gross_m | dollars }} {% if entry.inflation_mult > 1 %}adj WW gross{% else %}WW gross{% endif %}</span>
           {% endif %}
         </div>
       </div>

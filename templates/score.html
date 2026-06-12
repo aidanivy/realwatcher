@@ -50,6 +50,38 @@
     {% endif %}
   </div>
 
+  <div class="score-save-wrap">
+    {% if not s.score_saved %}
+    <form action="/game/save" method="POST" class="score-save-form">
+      <div class="score-save-row">
+        <input
+          type="text"
+          name="player_name"
+          placeholder="Your name…"
+          maxlength="32"
+          autocomplete="off"
+          class="score-name-input"
+          required
+        >
+        <button type="submit" class="btn-primary">Save Your Marquee</button>
+      </div>
+    </form>
+    {% else %}
+    <div class="score-saved-row">
+      <a href="/leaderboard" class="btn-primary">Show Leaderboard</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="score-section-divider"></div>
+
+  <div class="score-play-again">
+    <form action="/game/restart" method="POST">
+      <button type="submit" class="btn-primary">Play Again</button>
+    </form>
+    <button class="btn-share" id="btn-share">Share Your Marquee</button>
+  </div>
+
   <div class="scorecard-grid">
     {% for entry in result.slots %}
     <div class="score-slot {% if entry.film %}filled{% else %}empty{% endif %}">
@@ -87,40 +119,6 @@
     {% endfor %}
   </div>
 
-  <div class="score-save-wrap">
-    {% if not s.score_saved %}
-    <form action="/game/save" method="POST" class="score-save-form">
-      <div class="score-save-row">
-        <input
-          type="text"
-          name="player_name"
-          placeholder="Your name…"
-          maxlength="32"
-          autocomplete="off"
-          class="score-name-input"
-          required
-        >
-        <button type="submit" class="btn-primary">Save Your Marquee</button>
-      </div>
-    </form>
-    {% else %}
-    <div class="score-saved-row">
-      <span class="score-saved-label">✓ Saved as <strong>{{ s.player }}</strong></span>
-      {% if s.share_token %}
-      <button class="btn-share" id="btn-share" data-url="{{ request.host_url }}s/{{ s.share_token }}">
-        Share Your Marquee
-      </button>
-      {% endif %}
-    </div>
-    {% endif %}
-  </div>
-
-  <div class="score-play-again">
-    <form action="/game/restart" method="POST">
-      <button type="submit" class="btn-primary">Play Again</button>
-    </form>
-  </div>
-
   {% if s.history %}
   <div class="history-section">
     <h2 class="history-title">Round History</h2>
@@ -152,15 +150,30 @@
 <script>
 const btnShare = document.getElementById('btn-share');
 if (btnShare) {
+  let shareUrl = null;
   btnShare.addEventListener('click', async () => {
-    const url = btnShare.dataset.url;
-    if (navigator.share) {
-      navigator.share({ title: 'My Box Office Marquee', url });
-    } else {
-      await navigator.clipboard.writeText(url);
-      btnShare.textContent = 'Link Copied!';
-      setTimeout(() => btnShare.textContent = 'Share Your Marquee', 2000);
+    btnShare.disabled = true;
+    btnShare.textContent = 'Getting link…';
+    try {
+      if (!shareUrl) {
+        const res  = await fetch('/game/share', { method: 'POST' });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        shareUrl = data.url;
+      }
+      if (navigator.share) {
+        await navigator.share({ title: 'My Box Office Marquee', url: shareUrl });
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        btnShare.textContent = 'Link Copied!';
+        setTimeout(() => { btnShare.textContent = 'Share Your Marquee'; btnShare.disabled = false; }, 2000);
+        return;
+      }
+    } catch (e) {
+      btnShare.textContent = 'Share Your Marquee';
     }
+    btnShare.disabled = false;
+    btnShare.textContent = 'Share Your Marquee';
   });
 }
 </script>

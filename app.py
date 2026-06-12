@@ -12,11 +12,13 @@ Routes:
   GET  /api/state         → JSON dump of current game state (for JS polling)
 """
 
+import base64
 import json
 import os
 import random
 import secrets
 import sqlite3
+import zlib
 from datetime import datetime, timezone
 from flask import (
     Flask, render_template, request, session,
@@ -159,7 +161,7 @@ SCORING = {
     "final_weights":      (0.75, 0.35), # (commercial, prestige)
     "inflation_mult": {"70s": 5, "80s": 3, "90s": 2},  # flat CPI adj for scoring only
     "tiers": [
-        {"min": 12000, "grade": "PERFECT",     "headline": "\"CINEMA\""},
+        {"min": 12000, "grade": "PERFECT",     "headline": "CINEMA"},
         {"min": 10000, "grade": "OUTSTANDING", "headline": "IMPECCABLE TASTE"},
         {"min": 7000,  "grade": "GREAT",       "headline": "BOX OFFICE GOLD"},
         {"min": 5000,  "grade": "SOLID",       "headline": "RESPECTABLE RUN"},
@@ -814,6 +816,42 @@ def game_draft():
     })
 
 
+def _build_snapshot(result, player, mode):
+    return {
+        "player":          player,
+        "mode":            mode,
+        "grade":           result["tier"]["grade"],
+        "headline":        result["tier"]["headline"],
+        "final_score":     result["final_score"],
+        "total_profit":    result["total_profit"],
+        "oscar_bonus":     0,
+        "filled":          result["filled"],
+        "top_film_id":     result["top_film_id"],
+        "total_adj_gross": result["total_adj_gross"],
+        "total_noms":      result["total_noms"],
+        "total_wins":      result["total_wins"],
+        "slots": [
+            {
+                "slot_number":    e["slot"]["slot_number"],
+                "label":          e["slot"]["label"],
+                "icon":           e["slot"]["icon"],
+                "slot_score":     e.get("slot_score", 0),
+                "oscar_wins":     e.get("oscar_wins", 0),
+                "bp_won":         e.get("bp_won", False),
+                "gross_m":        e.get("gross_m"),
+                "inflation_mult": e.get("inflation_mult", 1),
+                "film": {
+                    "id":         e["film"]["id"],
+                    "title":      e["film"]["title"],
+                    "year":       e["film"]["year"],
+                    "poster_url": e["film"].get("poster_url"),
+                } if e["film"] else None,
+            }
+            for e in result["slots"]
+        ],
+    }
+
+
 @app.route("/game/score")
 def score():
     s = state()
@@ -821,6 +859,26 @@ def score():
         return redirect(url_for("index"))
     result = compute_score(s)
     return render_template("score.html", s=s, result=result, slots=MARQUEE_SLOTS, scoring=SCORING)
+
+
+def _encode_snapshot(snapshot: dict) -> str:
+    raw = json.dumps(snapshot, separators=(',', ':')).encode()
+    return base64.urlsafe_b64encode(zlib.compress(raw, 9)).decode().rstrip('=')
+
+def _decode_snapshot(data: str) -> dict:
+    padded = data + '=' * (-len(data) % 4)
+    return json.loads(zlib.decompress(base64.urlsafe_b64decode(padded)))
+
+
+@app.post("/game/share")
+def game_share():
+    s = state()
+    if not s or s.get("phase") != "done":
+        return {"error": "No active game"}, 400
+    result   = compute_score(s)
+    snapshot = _build_snapshot(result, s.get("player", ""), s.get("mode", "realwatcher"))
+    encoded  = _encode_snapshot(snapshot)
+    return {"url": request.host_url.rstrip("/") + f"/s/{encoded}"}
 
 
 @app.post("/game/save")
@@ -835,35 +893,9 @@ def game_save():
     if not player:
         return redirect(url_for("score"))
 
-    result = compute_score(s)
-    token  = secrets.token_urlsafe(8)
-    snapshot = {
-        "player":       player,
-        "mode":         s.get("mode", "realwatcher"),
-        "grade":        result["tier"]["grade"],
-        "headline":     result["tier"]["headline"],
-        "final_score":  result["final_score"],
-        "total_profit": result["total_profit"],
-        "oscar_bonus":  0,
-        "filled":       result["filled"],
-        "top_film_id":  result["top_film_id"],
-        "slots": [
-            {
-                "slot_number": e["slot"]["slot_number"],
-                "label":       e["slot"]["label"],
-                "icon":        e["slot"]["icon"],
-                "slot_score":  e.get("slot_score", 0),
-                "film": {
-                    "id":         e["film"]["id"],
-                    "title":      e["film"]["title"],
-                    "year":       e["film"]["year"],
-                    "poster_url": e["film"].get("poster_url"),
-                } if e["film"] else None,
-                "oscar_wins": e.get("oscar_wins", 0),
-            }
-            for e in result["slots"]
-        ],
-    }
+    result   = compute_score(s)
+    snapshot = _build_snapshot(result, player, s.get("mode", "realwatcher"))
+    token    = secrets.token_urlsafe(8)
     try:
         db = get_db()
         db.execute(
@@ -879,19 +911,17 @@ def game_save():
     except Exception as e:
         print(f"  Score save error: {e}")
     s["score_saved"] = True
-    s["share_token"] = token
     s["player"]      = player
     save_state(s)
-    mode = s.get("mode", "realwatcher")
-    return redirect(url_for("leaderboard") + f"#{mode}")
+    return redirect(url_for("score"))
 
 
-@app.get("/s/<token>")
-def shared_score(token):
-    row = query_one("SELECT result_json FROM scores WHERE share_token = ?", (token,))
-    if not row:
+@app.get("/s/<data>")
+def shared_score(data):
+    try:
+        snapshot = _decode_snapshot(data)
+    except Exception:
         return redirect(url_for("index"))
-    snapshot = json.loads(row["result_json"])
     return render_template("shared_score.html", snap=snapshot)
 
 

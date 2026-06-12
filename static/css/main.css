@@ -597,8 +597,7 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
 .scorecard { max-width: 900px; margin: 0 auto; }
 
 .score-hero {
-  text-align: center; padding: 48px 24px 40px;
-  border-bottom: 1px solid var(--card-border); margin-bottom: 40px;
+  text-align: center; padding: 48px 24px 0;
 }
 .score-eyebrow {
   font-size: .75rem; letter-spacing: .35em; text-transform: uppercase;
@@ -739,7 +738,11 @@ a:hover { color: var(--gold-lt); text-decoration: underline; }
 }
 .score-saved-label { color: var(--cream); font-size: .95rem; }
 .score-saved-label strong { color: var(--gold); }
-.score-play-again { text-align: center; margin: 20px 0 40px; }
+.score-section-divider {
+  max-width: 520px; margin: 32px auto;
+  border-top: 1px solid rgba(201,168,76,.25);
+}
+.score-play-again { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 0 0 44px; }
 .btn-share {
   display: inline-flex; align-items: center; gap: 8px;
   background: transparent; border: 2px solid var(--gold);
